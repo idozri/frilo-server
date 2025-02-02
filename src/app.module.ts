@@ -15,7 +15,9 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
+import { DataInitModule } from './services/data-init.module';
 import configuration from './config/configuration';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import configuration from './config/configuration';
     AnalyticsModule,
     AchievementsModule,
     ReactionsModule,
+    PassportModule,
+    DataInitModule,
   ],
 })
 export class AppModule {}

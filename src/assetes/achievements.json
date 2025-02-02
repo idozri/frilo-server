@@ -1,0 +1,60 @@
+{
+  "achievements": [
+    {
+      "name": "First Help",
+      "description": "Create your first help marker",
+      "icon": "hand-right",
+      "color": "#FF4B4B",
+      "total": 1,
+      "type": "markers_created"
+    },
+    {
+      "name": "First Help Done",
+      "description": "Complete your first help request",
+      "icon": "checkmark-circle",
+      "color": "#4CAF50",
+      "total": 1,
+      "type": "markers_completed"
+    },
+    {
+      "name": "Helpful Hero",
+      "description": "Help 10 different people",
+      "icon": "star",
+      "color": "#2196F3",
+      "total": 10,
+      "type": "markers_completed"
+    },
+    {
+      "name": "Community Pillar",
+      "description": "Create 5 help requests",
+      "icon": "people",
+      "color": "#9C27B0",
+      "total": 5,
+      "type": "markers_created"
+    },
+    {
+      "name": "Quick Responder",
+      "description": "Respond to a help request within 5 minutes of creation",
+      "icon": "flash",
+      "color": "#FFC107",
+      "total": 1,
+      "type": "quick_response"
+    },
+    {
+      "name": "Social Butterfly",
+      "description": "Interact with 20 different users",
+      "icon": "heart",
+      "color": "#E91E63",
+      "total": 20,
+      "type": "user_interactions"
+    },
+    {
+      "name": "Help Master",
+      "description": "Complete 25 help requests",
+      "icon": "trophy",
+      "color": "#00BCD4",
+      "total": 25,
+      "type": "markers_completed"
+    }
+  ]
+}

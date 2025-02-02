@@ -1,0 +1,88 @@
+{
+  "categories": [
+    {
+      "name": "Food",
+      "icon": "fast-food-outline",
+      "color": "#FF9800",
+      "description": "Food banks, free meals, groceries assistance",
+      "type": "food"
+    },
+    {
+      "name": "Shelter",
+      "icon": "home-outline",
+      "color": "#4CAF50",
+      "description": "Emergency housing, shelters, temporary stays",
+      "type": "shelter"
+    },
+    {
+      "name": "Sharing",
+      "icon": "home-outline",
+      "color": "#4CAF50",
+      "description": "Emergency housing, shelters, temporary stays",
+      "type": "sharing"
+    },
+    {
+      "name": "Toys",
+      "icon": "home-outline",
+      "color": "#4CAF50",
+      "description": "Emergency housing, shelters, temporary stays",
+      "type": "toys"
+    },
+    {
+      "name": "Clothing",
+      "icon": "shirt-outline",
+      "color": "#795548",
+      "description": "Free clothing, winter wear, professional attire",
+      "type": "clothing"
+    },
+    {
+      "name": "Transport",
+      "icon": "car-sport-outline",
+      "color": "#2196F3",
+      "description": "Transportation assistance, ride services",
+      "type": "transport"
+    },
+    {
+      "name": "Medical",
+      "icon": "medical-outline",
+      "color": "#F44336",
+      "description": "Medical care, prescriptions, health services",
+      "type": "medical"
+    },
+    {
+      "name": "Companionship",
+      "icon": "people-outline",
+      "color": "#009688",
+      "description": "Social support, friendship, community",
+      "type": "companionship"
+    },
+    {
+      "name": "Education",
+      "icon": "school-outline",
+      "color": "#673AB7",
+      "description": "Tutoring, classes, learning resources",
+      "type": "education"
+    },
+    {
+      "name": "Employment",
+      "icon": "briefcase-outline",
+      "color": "#FF5722",
+      "description": "Job training, employment assistance",
+      "type": "employment"
+    },
+    {
+      "name": "Grocery",
+      "icon": "cart-outline",
+      "color": "#FF9800",
+      "description": "Grocery assistance, food banks",
+      "type": "grocery"
+    },
+    {
+      "name": "Other",
+      "icon": "help-circle-outline",
+      "color": "#757575",
+      "description": "Other forms of assistance",
+      "type": "other"
+    }
+  ]
+}

@@ -2,14 +2,21 @@
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { AchievementType } from '../types/achievement.types';
 
 export type AchievementDocument = Achievement & Document;
 
-export type AchievementType =
-  | 'markers_created'
-  | 'markers_completed'
-  | 'quick_response'
-  | 'user_interactions';
+// Define the rewards schema type
+class AchievementRewards {
+  @Prop({ required: true, type: String })
+  badge: string;
+
+  @Prop({ required: true, type: Number })
+  points: number;
+
+  @Prop({ required: true, type: String })
+  unlockFeature: string;
+}
 
 @Schema({ timestamps: true })
 export class Achievement {
@@ -27,6 +34,9 @@ export class Achievement {
 
   @Prop({ required: true })
   total: number;
+
+  @Prop({ type: AchievementRewards })
+  rewards?: AchievementRewards;
 
   @Prop({
     required: true,
@@ -75,6 +85,9 @@ export class UserAchievement {
 
   @Prop()
   earnedAt?: Date;
+
+  @Prop()
+  completedAt?: Date;
 }
 
 @Schema({ timestamps: true })

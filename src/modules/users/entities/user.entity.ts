@@ -8,18 +8,26 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: true })
-  firstName: string;
+  @Prop({ type: String, required: true })
+  _id: string;
 
-  @Prop({ required: true })
-  lastName: string;
+  @Prop({ unique: true })
+  email?: string;
 
-  @Prop({ required: true, unique: true })
-  email: string;
+  @Prop()
+  displayName?: string;
 
-  @Prop({ required: true })
-  @Exclude()
-  password: string;
+  @Prop()
+  firstName?: string;
+
+  @Prop()
+  lastName?: string;
+
+  @Prop()
+  avatarUrl?: string;
+
+  @Prop()
+  password?: string;
 
   @Prop({ default: [] })
   friendIds: string[];
@@ -29,9 +37,6 @@ export class User {
 
   @Prop()
   lastSeen?: Date;
-
-  @Prop({ default: '' })
-  avatarUrl: string;
 
   @Prop({ default: true })
   isActive: boolean;

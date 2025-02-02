@@ -6,6 +6,8 @@ import {
   Client,
   GeocodeRequest,
   PlaceAutocompleteRequest,
+  PlaceDetailsRequest,
+  PlaceAutocompleteType,
 } from '@googlemaps/google-maps-services-js';
 
 @Injectable()
@@ -28,39 +30,54 @@ export class GoogleMapsService {
     return response.data.results;
   }
 
-  async reverseGeocode(lat: number, lng: number) {
+  async reverseGeocode(latitude: number, longitude: number) {
     const request: GeocodeRequest = {
       params: {
-        address: `${lat},${lng}`,
+        address: `${latitude},${longitude}`,
         key: this.configService.get<string>('GOOGLE_MAPS_API_KEY'),
       },
     };
 
     const response = await this.client.geocode(request);
-    return response.data.results;
+    if (response.data.results.length > 0) {
+      return {
+        latitude,
+        longitude,
+        address: response.data.results[0].formatted_address,
+      };
+    }
+    return null;
   }
 
   async getPlaceAutocomplete(input: string) {
     const request: PlaceAutocompleteRequest = {
       params: {
         input,
-        types: 'address',
+        types: PlaceAutocompleteType.address,
         key: this.configService.get<string>('GOOGLE_MAPS_API_KEY'),
       },
     };
 
+    console.log('request', request);
     const response = await this.client.placeAutocomplete(request);
+    console.log('response', response.data.predictions);
     return response.data.predictions;
   }
 
   async getPlaceDetails(placeId: string) {
-    const response = await this.client.placeDetails({
+    const request: PlaceDetailsRequest = {
       params: {
         place_id: placeId,
         key: this.configService.get<string>('GOOGLE_MAPS_API_KEY'),
       },
-    });
-    return response.data.result;
+    };
+
+    const response = await this.client.placeDetails(request);
+    return {
+      latitude: response.data.result.geometry.location.lat,
+      longitude: response.data.result.geometry.location.lng,
+      address: response.data.result.formatted_address,
+    };
   }
 
   calculateDistance(

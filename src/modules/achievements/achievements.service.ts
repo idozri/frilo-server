@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Achievement, UserAchievement } from './entities/achievement.entity';
+import { AchievementType } from './types/achievement.types';
 
 @Injectable()
 export class AchievementsService {
@@ -76,21 +77,20 @@ export class AchievementsService {
     userId: string,
     achievement: Achievement
   ): Promise<number> {
-    // Implement progress calculation based on achievement type and criteria
     switch (achievement.type) {
-      case 'MARKERS_CREATED':
+      case AchievementType.MARKERS_CREATED:
         // Count user's created markers
         return 0;
-      case 'MARKERS_COMPLETED':
+      case AchievementType.MARKERS_COMPLETED:
         // Count user's completed markers
         return 0;
-      case 'MESSAGES_SENT':
+      case AchievementType.MESSAGES_SENT:
         // Count user's sent messages
         return 0;
-      case 'REACTIONS_RECEIVED':
+      case AchievementType.REACTIONS_RECEIVED:
         // Count reactions received on user's messages
         return 0;
-      case 'HELP_PROVIDED':
+      case AchievementType.HELP_PROVIDED:
         // Count times user helped others
         return 0;
       default:

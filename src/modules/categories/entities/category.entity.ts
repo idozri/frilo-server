@@ -19,7 +19,7 @@ export class Category {
   @Prop()
   description?: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   type: string;
 
   @Prop({ default: 0 })
@@ -30,3 +30,6 @@ export class Category {
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);
+
+// Add index for better querying
+CategorySchema.index({ type: 1 });

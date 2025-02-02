@@ -2,6 +2,7 @@
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Category } from 'src/modules/categories/entities/category.entity';
 
 export type MarkerDocument = Marker & Document;
 
@@ -22,6 +23,14 @@ export enum MarkerStatus {
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
   PENDING = 'pending',
+  WAITING_FOR_APPROVAL = 'waiting_for_approval',
+  IN_PROGRESS = 'in_progress',
+}
+
+export enum MarkerPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
 }
 
 @Schema({ timestamps: true })
@@ -41,14 +50,22 @@ export class Marker {
   @Prop({ type: { latitude: Number, longitude: Number, address: String } })
   location: Location;
 
-  @Prop({ required: true })
-  categoryId: string;
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Category',
+    required: true,
+  })
+  category: Category;
 
   @Prop({ required: true })
   ownerId: string;
 
-  @Prop({ default: 0 })
-  priority: number;
+  @Prop({
+    type: String,
+    enum: Object.values(MarkerPriority),
+    default: MarkerPriority.MEDIUM,
+  })
+  priority: MarkerPriority;
 
   @Prop({ default: 0 })
   rating: number;
@@ -59,7 +76,7 @@ export class Marker {
   @Prop({
     type: String,
     enum: Object.values(MarkerStatus),
-    default: MarkerStatus.PENDING,
+    default: MarkerStatus.ACTIVE,
   })
   status: MarkerStatus;
 

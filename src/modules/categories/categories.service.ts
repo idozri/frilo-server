@@ -18,7 +18,7 @@ export class CategoriesService {
   }
 
   async findAll(): Promise<Category[]> {
-    return this.categoryModel.find({ isActive: true }).exec();
+    return this.categoryModel.find({ isActive: true }).sort({ name: 1 }).exec();
   }
 
   async findOne(id: string): Promise<Category> {

@@ -1,0 +1,46 @@
+{
+  "badges": [
+    {
+      "name": "First Help Badge",
+      "description": "Awarded for creating your first help request",
+      "icon": "ribbon",
+      "color": "#FFD700"
+    },
+    {
+      "name": "First Help Done Badge",
+      "description": "Awarded for completing your first help request",
+      "icon": "trophy",
+      "color": "#4CAF50"
+    },
+    {
+      "name": "Helpful Hero Badge",
+      "description": "Awarded for helping 10 different people",
+      "icon": "medal",
+      "color": "#2196F3"
+    },
+    {
+      "name": "Community Pillar Badge",
+      "description": "Awarded for being an active help requester",
+      "icon": "shield",
+      "color": "#9C27B0"
+    },
+    {
+      "name": "Quick Responder Badge",
+      "description": "Awarded for quick response times",
+      "icon": "flash",
+      "color": "#FFC107"
+    },
+    {
+      "name": "Social Butterfly Badge",
+      "description": "Awarded for being highly social in the community",
+      "icon": "heart-circle",
+      "color": "#E91E63"
+    },
+    {
+      "name": "Help Master Badge",
+      "description": "Awarded for completing 25 help requests",
+      "icon": "star-circle",
+      "color": "#00BCD4"
+    }
+  ]
+}

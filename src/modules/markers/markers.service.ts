@@ -12,19 +12,23 @@ import { CreateMarkerDto } from './dto/create-marker.dto';
 import { UpdateMarkerDto } from './dto/update-marker.dto';
 import { UsersService } from '../users/users.service';
 import { S3Service } from '../s3/s3.service';
+import { CategoriesService } from '../categories/categories.service';
 
 @Injectable()
 export class MarkersService {
   constructor(
     @InjectModel(Marker.name) private markerModel: Model<MarkerDocument>,
     private usersService: UsersService,
-    private s3Service: S3Service
+    private s3Service: S3Service,
+    private categoriesService: CategoriesService
   ) {}
 
   async create(
     userId: string,
     createMarkerDto: CreateMarkerDto
   ): Promise<Marker> {
+    console.log('createMarkerDto', createMarkerDto);
+
     const marker = new this.markerModel({
       ...createMarkerDto,
       ownerId: userId,
@@ -35,16 +39,48 @@ export class MarkersService {
       isFavorited: false,
     });
 
-    return marker.save();
+    let newMarker: Marker;
+    try {
+      newMarker = await marker.save();
+      // marker should have the category object
+      newMarker.category = await this.categoriesService.findOne(
+        createMarkerDto.categoryId
+      );
+    } catch (error) {
+      console.error('Error creating marker:', error);
+    }
+    try {
+      await this.categoriesService.incrementMarkersCount(
+        createMarkerDto.categoryId
+      );
+    } catch (error) {
+      console.error('Error incrementing markers count:', error);
+    }
+
+    return {
+      ...newMarker,
+      category: {
+        ...newMarker.category,
+        markersCount: newMarker.category.markersCount + 1,
+      },
+    };
   }
 
   async findAll(categoryId?: string): Promise<Marker[]> {
     const query = categoryId ? { categoryId } : {};
-    return this.markerModel.find(query).exec();
+    const markers = await this.markerModel
+      .find(query)
+      .populate('categoryId', null, 'Category')
+      .exec();
+    console.log('markers', markers);
+    return markers;
   }
 
   async findOne(id: string): Promise<Marker> {
-    const marker = await this.markerModel.findById(id).exec();
+    const marker = await this.markerModel
+      .findById(id)
+      .populate('categoryId', null, 'Category')
+      .exec();
     if (!marker) {
       throw new NotFoundException(`Marker #${id} not found`);
     }

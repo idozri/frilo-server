@@ -87,4 +87,22 @@ export class UsersService {
     const urlParts = url.split('/');
     return urlParts.slice(3).join('/'); // Remove protocol and bucket name
   }
+
+  async findOrCreate(userData: {
+    id: string;
+    email: string;
+    displayName?: string;
+  }) {
+    let user = await this.userModel.findOne({ _id: userData.id });
+
+    if (!user) {
+      user = await this.userModel.create({
+        _id: userData.id,
+        // email: userData.email,
+        displayName: userData.displayName,
+      });
+    }
+
+    return user;
+  }
 }

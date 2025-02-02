@@ -1,25 +1,38 @@
 /** @format */
 
-import { Controller, Post, Body, HttpCode, HttpStatus } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { AuthService } from "./auth.service";
-import { LoginDto } from "./dto/login.dto";
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
 
-@ApiTags("auth")
-@Controller("auth")
+@ApiTags('auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post("login")
+  @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Login user" })
-  @ApiResponse({ status: 200, description: "User successfully logged in." })
-  @ApiResponse({ status: 401, description: "Invalid credentials." })
+  @ApiOperation({ summary: 'Login user' })
+  @ApiResponse({ status: 200, description: 'User successfully logged in.' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials.' })
   async login(@Body() loginDto: LoginDto) {
     const user = await this.authService.validateUser(
       loginDto.email,
       loginDto.password
     );
     return this.authService.login(user);
+  }
+
+  @Post('loginWithFirebase')
+  @ApiOperation({ summary: 'Login with Firebase token' })
+  async loginWithFirebase(
+    @Body()
+    loginData: {
+      firebaseToken: string;
+      userId: string;
+      displayName?: string;
+    }
+  ) {
+    return this.authService.loginWithFirebase(loginData);
   }
 }

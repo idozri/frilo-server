@@ -6,22 +6,33 @@ import * as admin from 'firebase-admin';
 import { Notification } from './entities/notification.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
+  private app: admin.app.App;
+
   constructor(
     private configService: ConfigService,
     @InjectModel(Notification.name)
     private notificationModel: Model<Notification>
   ) {}
 
-  onModuleInit() {
-    const serviceAccount = this.configService.get('FIREBASE_SERVICE_ACCOUNT');
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(JSON.parse(serviceAccount)),
-      });
-    }
+  async onModuleInit() {
+    const serviceAccountPath = this.configService.get<string>(
+      'FIREBASE_SERVICE_ACCOUNT'
+    );
+
+    // Read the JSON file
+    const serviceAccount = JSON.parse(
+      fs.readFileSync(path.resolve(process.cwd(), serviceAccountPath), 'utf8')
+    );
+
+    // Initialize Firebase Admin
+    this.app = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
   }
 
   async sendPushNotification(
