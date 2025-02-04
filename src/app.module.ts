@@ -18,6 +18,7 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
 import { DataInitModule } from './services/data-init.module';
 import configuration from './config/configuration';
 import { PassportModule } from '@nestjs/passport';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -29,6 +30,9 @@ import { PassportModule } from '@nestjs/passport';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('database.uri'),
+        retryWrites: true,
+        tls: true,
+        tlsAllowInvalidCertificates: false,
       }),
       inject: [ConfigService],
     }),
@@ -46,6 +50,7 @@ import { PassportModule } from '@nestjs/passport';
     ReactionsModule,
     PassportModule,
     DataInitModule,
+    OnboardingModule,
   ],
 })
 export class AppModule {}

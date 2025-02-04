@@ -105,4 +105,45 @@ export class UsersService {
 
     return user;
   }
+
+  async findOrCreateByPhone(
+    phoneNumber: string,
+    userData?: {
+      name?: string;
+      agreedToTerms?: boolean;
+    }
+  ): Promise<User> {
+    let user = await this.userModel.findOne({ phoneNumber });
+
+    if (!user) {
+      user = await this.userModel.create({
+        _id: new Date().getTime().toString(), // Generate a unique ID
+        phoneNumber,
+        name: userData?.name,
+        isPhoneVerified: true,
+        agreedToTerms: userData?.agreedToTerms || false,
+        onboardingProgress: {
+          welcomeScreenSeen: false,
+          phoneVerified: true,
+          safetyGuidelinesAccepted: userData?.agreedToTerms || false,
+          tutorialCompleted: false,
+        },
+      });
+    } else {
+      // Update user data if provided
+      if (userData) {
+        user.name = userData.name || user.name;
+        user.agreedToTerms = userData.agreedToTerms || user.agreedToTerms;
+        user.onboardingProgress = {
+          ...user.onboardingProgress,
+          safetyGuidelinesAccepted:
+            userData.agreedToTerms ||
+            user.onboardingProgress.safetyGuidelinesAccepted,
+        };
+        await user.save();
+      }
+    }
+
+    return user;
+  }
 }

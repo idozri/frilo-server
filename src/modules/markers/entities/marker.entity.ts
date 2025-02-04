@@ -10,6 +10,7 @@ export interface Location {
   latitude: number;
   longitude: number;
   address?: string;
+  description?: string;
 }
 
 export interface Participant {

@@ -17,7 +17,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "fix-email-index": "ts-node src/scripts/fix-email-index.ts"
   },
   "dependencies": {
     "@aws-amplify/api": "^6.2.2",
@@ -34,6 +35,7 @@
     "@nestjs/platform-socket.io": "^11.0.5",
     "@nestjs/swagger": "^11.0.3",
     "@nestjs/websockets": "^11.0.5",
+    "@types/twilio": "^3.19.2",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -44,7 +46,8 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "twilio": "^5.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

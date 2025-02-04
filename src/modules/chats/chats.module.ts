@@ -9,6 +9,8 @@ import { Message, MessageSchema } from './entities/message.entity';
 import { UsersModule } from '../users/users.module';
 import { S3Module } from '../s3/s3.module';
 import { ChatUploadController } from './controllers/chat-upload.controller';
+// import { FirebaseModule } from '../firebase/firebase.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { ChatUploadController } from './controllers/chat-upload.controller';
     ]),
     UsersModule,
     S3Module,
+    // FirebaseModule,
+    AuthModule,
   ],
   controllers: [ChatsController, ChatUploadController],
   providers: [ChatsService],

@@ -7,100 +7,112 @@ import {
   Body,
   Param,
   Delete,
-  UseGuards,
-  Request,
   Put,
-} from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from "@nestjs/swagger";
-import { ChatsService } from "./chats.service";
-import { CreateChatDto } from "./dto/create-chat.dto";
-import { CreateMessageDto } from "./dto/create-message.dto";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+  UseGuards,
+  Query,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ChatsService } from './chats.service';
+import { CreateChatDto } from './dto/create-chat.dto';
+import { SendMessageDto } from './dto/send-message.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { User } from '../users/entities/user.entity';
+import { GetUser } from '../auth/get-user.decorator';
 
-@ApiTags("chats")
-@Controller("chats")
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiTags('chats')
+@Controller('chats')
+@UseGuards(AuthGuard())
 export class ChatsController {
   constructor(private readonly chatsService: ChatsService) {}
 
   @Post()
-  @ApiOperation({ summary: "Create a new chat" })
-  @ApiResponse({ status: 201, description: "Chat created successfully." })
-  async createChat(@Request() req, @Body() createChatDto: CreateChatDto) {
-    return this.chatsService.createChat(req.user.userId, createChatDto);
+  @ApiOperation({ summary: 'Create a new chat' })
+  @ApiResponse({ status: 201, description: 'Chat created successfully.' })
+  async createChat(
+    @Body() createChatDto: CreateChatDto,
+    @GetUser() user: User
+  ) {
+    return this.chatsService.createChat(createChatDto, user);
   }
 
   @Get()
-  @ApiOperation({ summary: "Get all chats for the current user" })
-  @ApiResponse({ status: 200, description: "Returns all user chats." })
-  async getUserChats(@Request() req) {
-    return this.chatsService.getUserChats(req.user.userId);
+  @ApiOperation({ summary: 'Get all chats for current user' })
+  async getChats(@GetUser() user: User) {
+    return this.chatsService.getChats(user._id);
   }
 
-  @Get(":id")
-  @ApiOperation({ summary: "Get a specific chat" })
-  @ApiResponse({ status: 200, description: "Returns the chat." })
-  @ApiResponse({ status: 404, description: "Chat not found." })
-  async getChat(@Param("id") id: string) {
+  @Get(':id')
+  @ApiOperation({ summary: 'Get chat by ID' })
+  async getChat(@Param('id') id: string) {
     return this.chatsService.getChat(id);
   }
 
-  @Post(":chatId/messages")
-  @ApiOperation({ summary: "Send a message in a chat" })
-  @ApiResponse({ status: 201, description: "Message sent successfully." })
-  async addMessage(
-    @Request() req,
-    @Param("chatId") chatId: string,
-    @Body() createMessageDto: CreateMessageDto
+  @Get(':id/messages')
+  @ApiOperation({ summary: 'Get messages for a chat' })
+  async getChatMessages(@Param('id') chatId: string) {
+    return this.chatsService.getChatMessages(chatId);
+  }
+
+  @Post(':id/messages')
+  @ApiOperation({ summary: 'Send a message in chat' })
+  async sendMessage(
+    @Param('id') chatId: string,
+    @Body() messageDto: SendMessageDto,
+    @GetUser() user: User
   ) {
-    return this.chatsService.addMessage(req.user.userId, {
-      ...createMessageDto,
-      chatId,
-    });
+    return this.chatsService.sendMessage(chatId, messageDto, user);
   }
 
-  @Get(":chatId/messages")
-  @ApiOperation({ summary: "Get all messages in a chat" })
-  @ApiResponse({ status: 200, description: "Returns all chat messages." })
-  async getMessages(@Param("chatId") chatId: string) {
-    return this.chatsService.getMessages(chatId);
-  }
-
-  @Put("messages/:messageId/read")
-  @ApiOperation({ summary: "Mark a message as read" })
-  @ApiResponse({ status: 200, description: "Message marked as read." })
-  async markMessageAsRead(
-    @Request() req,
-    @Param("messageId") messageId: string
-  ) {
-    return this.chatsService.markMessageAsRead(req.user.userId, messageId);
-  }
-
-  @Delete("messages/:messageId")
-  @ApiOperation({ summary: "Delete a message" })
-  @ApiResponse({ status: 200, description: "Message deleted successfully." })
-  async deleteMessage(@Request() req, @Param("messageId") messageId: string) {
-    return this.chatsService.deleteMessage(req.user.userId, messageId);
-  }
-
-  @Put(":chatId/typing")
-  @ApiOperation({ summary: "Update typing status" })
-  @ApiResponse({ status: 200, description: "Typing status updated." })
+  @Put(':id/typing')
+  @ApiOperation({ summary: 'Update typing status' })
   async updateTypingStatus(
-    @Request() req,
-    @Param("chatId") chatId: string,
-    @Body("isTyping") isTyping: boolean
+    @Param('id') chatId: string,
+    @GetUser() user: User,
+    @Query('isTyping') isTyping: boolean
   ) {
-    return this.chatsService.updateTypingStatus(
-      chatId,
-      req.user.userId,
-      isTyping
-    );
+    return this.chatsService.updateTypingStatus(chatId, user._id, isTyping);
+  }
+
+  @Put(':id/mute')
+  @ApiOperation({ summary: 'Mute/unmute chat' })
+  async muteChat(
+    @Param('id') chatId: string,
+    @GetUser() user: User,
+    @Query('isMuted') isMuted: boolean
+  ) {
+    return this.chatsService.muteChat(chatId, isMuted);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete chat' })
+  async deleteChat(@Param('id') chatId: string, @GetUser() user: User) {
+    return this.chatsService.deleteChat(chatId, user);
+  }
+
+  @Post(':id/participants')
+  @ApiOperation({ summary: 'Add participants to group chat' })
+  async addParticipants(
+    @Param('id') chatId: string,
+    @Body('userIds') userIds: string[]
+  ) {
+    return this.chatsService.addGroupParticipants(chatId, userIds);
+  }
+
+  @Delete(':id/participants/:userId')
+  @ApiOperation({ summary: 'Remove participant from group chat' })
+  async removeParticipant(
+    @Param('id') chatId: string,
+    @Param('userId') userId: string
+  ) {
+    return this.chatsService.removeGroupParticipant(chatId, userId);
+  }
+
+  @Put(':id/group')
+  @ApiOperation({ summary: 'Update group chat details' })
+  async updateGroupChat(
+    @Param('id') chatId: string,
+    @Body() updateData: { groupName?: string; groupAvatar?: string }
+  ) {
+    return this.chatsService.updateGroupChat(chatId, updateData);
   }
 }

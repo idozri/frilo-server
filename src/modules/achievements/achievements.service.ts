@@ -2,9 +2,14 @@
 
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Achievement, UserAchievement } from './entities/achievement.entity';
-import { AchievementType } from './types/achievement.types';
+import {
+  AchievementType,
+  AchievementSummaryItem,
+} from './types/achievement.types';
+import { Message } from '../chats/entities/message.entity';
+import { Marker } from '../markers/entities/marker.entity';
 
 @Injectable()
 export class AchievementsService {
@@ -12,7 +17,11 @@ export class AchievementsService {
     @InjectModel(Achievement.name)
     private achievementModel: Model<Achievement>,
     @InjectModel(UserAchievement.name)
-    private userAchievementModel: Model<UserAchievement>
+    private userAchievementModel: Model<UserAchievement>,
+    @InjectModel(Marker.name)
+    private markersModel: Model<Marker>,
+    @InjectModel(Message.name)
+    private messagesModel: Model<Message>
   ) {}
 
   async getAchievements(): Promise<Achievement[]> {
@@ -23,25 +32,84 @@ export class AchievementsService {
     return this.userAchievementModel.find({ userId }).exec();
   }
 
+  async getUserAchievementsSummary(
+    userId: string
+  ): Promise<AchievementSummaryItem[]> {
+    const [completedAchievements, inProgressAchievement] = await Promise.all([
+      // Get latest 3 completed achievements
+      this.userAchievementModel
+        .find({ userId, isCompleted: true })
+        .sort({ completedAt: -1 })
+        .limit(3)
+        .populate('achievementId')
+        .lean()
+        .exec(),
+
+      // Get top in-progress achievement
+      this.userAchievementModel
+        .findOne({ userId, isCompleted: false })
+        .sort({ progress: -1 })
+        .populate('achievementId')
+        .lean()
+        .exec(),
+    ]);
+
+    const badgesCount = await this.userAchievementModel.countDocuments({
+      userId,
+      isCompleted: true,
+    });
+
+    const latestBadges = completedAchievements.map((achievement) => ({
+      icon: achievement.achievementId.icon,
+      color: achievement.achievementId.color,
+      name: achievement.achievementId.name,
+    }));
+
+    const summary: AchievementSummaryItem[] = [
+      {
+        title: 'Badges Earned',
+        value: badgesCount,
+        icon: 'ribbon',
+        color: '#10B981',
+        latestBadges,
+      },
+    ];
+
+    if (inProgressAchievement) {
+      summary.push({
+        title: inProgressAchievement.achievementId.name,
+        value: Math.round(inProgressAchievement.progress * 100),
+        icon: inProgressAchievement.achievementId.icon,
+        color: inProgressAchievement.achievementId.color,
+        progress: inProgressAchievement.progress,
+        description: inProgressAchievement.achievementId.description,
+      });
+    }
+
+    return summary;
+  }
+
   async updateAchievementProgress(
     userId: string,
     achievementId: string,
     progress: number
   ): Promise<UserAchievement> {
-    const achievement = await this.achievementModel.findById(achievementId);
+    const achievement = await this.achievementModel.findById(
+      new Types.ObjectId(achievementId)
+    );
     if (!achievement) {
       throw new Error('Achievement not found');
     }
 
     let userAchievement = await this.userAchievementModel.findOne({
       userId,
-      achievementId,
+      achievementId: new Types.ObjectId(achievementId),
     });
 
     if (!userAchievement) {
       userAchievement = new this.userAchievementModel({
         userId,
-        achievementId,
+        achievementId: new Types.ObjectId(achievementId),
         progress: 0,
         isCompleted: false,
       });
@@ -79,20 +147,38 @@ export class AchievementsService {
   ): Promise<number> {
     switch (achievement.type) {
       case AchievementType.MARKERS_CREATED:
-        // Count user's created markers
-        return 0;
+        const markersCount = await this.markersModel.countDocuments({
+          createdBy: userId,
+        });
+        return markersCount;
+
       case AchievementType.MARKERS_COMPLETED:
-        // Count user's completed markers
-        return 0;
+        const completedMarkersCount = await this.markersModel.countDocuments({
+          createdBy: userId,
+          isCompleted: true,
+        });
+        return completedMarkersCount;
+
       case AchievementType.MESSAGES_SENT:
-        // Count user's sent messages
-        return 0;
+        const messagesSentCount = await this.messagesModel.countDocuments({
+          senderId: userId,
+        });
+        return messagesSentCount;
+
       case AchievementType.REACTIONS_RECEIVED:
-        // Count reactions received on user's messages
-        return 0;
+        const reactionsCount = await this.messagesModel.aggregate([
+          { $match: { senderId: userId } },
+          { $project: { reactionCount: { $size: '$reactions' } } },
+          { $group: { _id: null, total: { $sum: '$reactionCount' } } },
+        ]);
+        return reactionsCount[0]?.total || 0;
+
       case AchievementType.HELP_PROVIDED:
-        // Count times user helped others
-        return 0;
+        const helpProvidedCount = await this.markersModel.countDocuments({
+          helpProvidedBy: userId,
+        });
+        return helpProvidedCount;
+
       default:
         return 0;
     }

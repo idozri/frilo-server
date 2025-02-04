@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsBoolean,
   IsDate,
+  IsPhoneNumber,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -42,4 +43,33 @@ export class UpdateUserDto {
   @IsDate()
   @IsOptional()
   lastSeen?: Date;
+
+  @ApiProperty({ required: false })
+  @IsPhoneNumber()
+  @IsOptional()
+  phoneNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  isPhoneVerified?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  hasAcceptedSafetyGuidelines?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  hasCompletedOnboarding?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  onboardingProgress?: {
+    welcomeScreenSeen: boolean;
+    phoneVerified: boolean;
+    safetyGuidelinesAccepted: boolean;
+    tutorialCompleted: boolean;
+  };
 }

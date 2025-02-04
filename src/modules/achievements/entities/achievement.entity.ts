@@ -1,7 +1,7 @@
 /** @format */
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import { AchievementType } from '../types/achievement.types';
 
 export type AchievementDocument = Achievement & Document;
@@ -18,8 +18,10 @@ class AchievementRewards {
   unlockFeature: string;
 }
 
-@Schema({ timestamps: true })
-export class Achievement {
+@Schema()
+export class Achievement extends Document {
+  _id: Types.ObjectId;
+
   @Prop({ required: true })
   name: string;
 
@@ -35,8 +37,15 @@ export class Achievement {
   @Prop({ required: true })
   total: number;
 
-  @Prop({ type: AchievementRewards })
-  rewards?: AchievementRewards;
+  @Prop({ default: false })
+  isHidden: boolean;
+
+  @Prop({ type: Object })
+  rewards?: {
+    badge?: string;
+    points?: number;
+    unlockFeature?: string;
+  };
 
   @Prop({
     required: true,
@@ -74,8 +83,8 @@ export class UserAchievement {
   @Prop({ required: true })
   userId: string;
 
-  @Prop({ required: true })
-  achievementId: string;
+  @Prop({ required: true, type: Types.ObjectId, ref: Achievement.name })
+  achievementId: Achievement;
 
   @Prop({ default: 0 })
   progress: number;

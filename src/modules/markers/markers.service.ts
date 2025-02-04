@@ -31,6 +31,7 @@ export class MarkersService {
 
     const marker = new this.markerModel({
       ...createMarkerDto,
+      category: createMarkerDto.categoryId,
       ownerId: userId,
       participants: [],
       rating: 0,
@@ -39,13 +40,10 @@ export class MarkersService {
       isFavorited: false,
     });
 
-    let newMarker: Marker;
+    let populatedMarker: Marker;
     try {
-      newMarker = await marker.save();
-      // marker should have the category object
-      newMarker.category = await this.categoriesService.findOne(
-        createMarkerDto.categoryId
-      );
+      await marker.save();
+      populatedMarker = await marker.populate('category');
     } catch (error) {
       console.error('Error creating marker:', error);
     }
@@ -57,29 +55,28 @@ export class MarkersService {
       console.error('Error incrementing markers count:', error);
     }
 
-    return {
-      ...newMarker,
-      category: {
-        ...newMarker.category,
-        markersCount: newMarker.category.markersCount + 1,
-      },
-    };
+    return populatedMarker;
   }
 
   async findAll(categoryId?: string): Promise<Marker[]> {
-    const query = categoryId ? { categoryId } : {};
+    const query = categoryId ? { category: categoryId } : {};
+
     const markers = await this.markerModel
       .find(query)
-      .populate('categoryId', null, 'Category')
+      .populate('category')
       .exec();
-    console.log('markers', markers);
+
+    console.log(
+      'Markers with populated category:',
+      JSON.stringify(markers, null, 2)
+    );
     return markers;
   }
 
   async findOne(id: string): Promise<Marker> {
     const marker = await this.markerModel
       .findById(id)
-      .populate('categoryId', null, 'Category')
+      .populate('category')
       .exec();
     if (!marker) {
       throw new NotFoundException(`Marker #${id} not found`);
