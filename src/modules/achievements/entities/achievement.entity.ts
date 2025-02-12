@@ -84,7 +84,9 @@ export class UserAchievement {
   userId: string;
 
   @Prop({ required: true, type: Types.ObjectId, ref: Achievement.name })
-  achievementId: Achievement;
+  achievementId: string;
+
+  achievement?: Achievement;
 
   @Prop({ default: 0 })
   progress: number;
@@ -104,8 +106,10 @@ export class UserBadge {
   @Prop({ required: true })
   userId: string;
 
-  @Prop({ required: true })
+  @Prop({ type: Types.ObjectId, ref: Badge.name })
   badgeId: string;
+
+  badge?: Badge;
 
   @Prop({ required: true })
   earnedAt: Date;

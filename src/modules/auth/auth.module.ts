@@ -3,28 +3,31 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { OtpService } from './otp.service';
+import { AuthAdapter } from './adapter/auth.adapter';
+import { MongooseModule } from '@nestjs/mongoose';
+import { Otp, OtpSchema } from './entities/otp.entity';
 
 @Module({
   imports: [
     UsersModule,
-    PassportModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
+      imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('jwt.secret'),
-        signOptions: {
-          expiresIn: configService.get<string>('jwt.expiresIn'),
-        },
+        secret: configService.get('JWT_SECRET'),
+        signOptions: { expiresIn: '7d' },
       }),
       inject: [ConfigService],
     }),
+    MongooseModule.forFeature([{ name: Otp.name, schema: OtpSchema }]),
   ],
-  providers: [AuthService, JwtStrategy, OtpService],
+  providers: [AuthService, JwtStrategy, OtpService, AuthAdapter],
   exports: [AuthService],
   controllers: [AuthController],
 })

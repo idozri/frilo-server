@@ -37,9 +37,15 @@ export class ChatsService {
     return true;
   }
 
-  async getChats(userId: string) {
-    // return this.firebaseService.chats.getChats(userId);
-    return true;
+  async getChats(userId: string): Promise<Chat[]> {
+    return this.chatModel.find({ participants: userId }).exec();
+  }
+
+  async getChatsWithMessages(userId: string): Promise<Chat[]> {
+    return this.chatModel
+      .find({ participants: userId })
+      .populate('messages')
+      .exec();
   }
 
   async getChat(chatId: string) {
@@ -48,8 +54,7 @@ export class ChatsService {
   }
 
   async getChatMessages(chatId: string) {
-    // return this.firebaseService.messages.getMessages(chatId);
-    return true;
+    return this.messageModel.find({ chatId }).exec();
   }
 
   async sendMessage(chatId: string, messageDto: SendMessageDto, user: User) {

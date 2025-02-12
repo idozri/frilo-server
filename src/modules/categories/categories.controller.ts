@@ -23,12 +23,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('categories')
 @Controller('categories')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new category' })
   @ApiResponse({ status: 201, description: 'Category created successfully.' })
   async create(@Body() createCategoryDto: CreateCategoryDto) {
@@ -50,8 +50,6 @@ export class CategoriesController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a category' })
   @ApiResponse({ status: 200, description: 'Category updated successfully.' })
   async update(@Param('id') id: string, @Body() updateData: Partial<Category>) {
@@ -59,8 +57,6 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a category' })
   @ApiResponse({ status: 200, description: 'Category deleted successfully.' })
   async remove(@Param('id') id: string) {
@@ -68,8 +64,6 @@ export class CategoriesController {
   }
 
   @Post('initialize')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Initialize default categories' })
   @ApiResponse({ status: 200, description: 'Default categories initialized.' })
   async initializeDefaultCategories() {

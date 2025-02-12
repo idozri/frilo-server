@@ -2,6 +2,7 @@
 
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { PassportModule } from '@nestjs/passport';
 import { AchievementsService } from './achievements.service';
 import { AchievementsController } from './achievements.controller';
 import {
@@ -19,6 +20,7 @@ import { Message, MessageSchema } from '../chats/entities/message.entity';
 
 @Module({
   imports: [
+    PassportModule,
     MongooseModule.forFeature([
       { name: Achievement.name, schema: AchievementSchema },
       { name: Badge.name, schema: BadgeSchema },

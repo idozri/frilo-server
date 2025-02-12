@@ -11,6 +11,7 @@ import { S3Module } from '../s3/s3.module';
 import { ChatUploadController } from './controllers/chat-upload.controller';
 // import { FirebaseModule } from '../firebase/firebase.module';
 import { AuthModule } from '../auth/auth.module';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AuthModule } from '../auth/auth.module';
     S3Module,
     // FirebaseModule,
     AuthModule,
+    PassportModule,
   ],
   controllers: [ChatsController, ChatUploadController],
   providers: [ChatsService],

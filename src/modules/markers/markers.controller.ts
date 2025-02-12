@@ -19,10 +19,10 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { MarkersService } from './markers.service';
+import { FindAllParams, MarkersService } from './markers.service';
 import { CreateMarkerDto } from './dto/create-marker.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Marker } from './entities/marker.entity';
+import { Marker, MarkerStatus } from './entities/marker.entity';
 import { User } from '../auth/decorators/user.decorator';
 
 @ApiTags('markers')
@@ -46,8 +46,8 @@ export class MarkersController {
   @Get()
   @ApiOperation({ summary: 'Get all markers' })
   @ApiResponse({ status: 200, description: 'Returns all markers.' })
-  async findAll(@Query('categoryId') categoryId?: string) {
-    return this.markersService.findAll(categoryId);
+  async findAll(@Query() query: FindAllParams) {
+    return this.markersService.findAll(query);
   }
 
   @Get('user')
@@ -73,6 +73,19 @@ export class MarkersController {
     @Body() updateData: Partial<Marker>
   ) {
     return this.markersService.update(id, req.user.userId, updateData);
+  }
+
+  @Put(':id/status')
+  @ApiOperation({ summary: 'Update a marker status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Marker status updated successfully.',
+  })
+  async changeStatus(
+    @Param('id') id: string,
+    @Body('status') status: MarkerStatus
+  ) {
+    return this.markersService.changeStatus(id, status);
   }
 
   @Delete(':id')

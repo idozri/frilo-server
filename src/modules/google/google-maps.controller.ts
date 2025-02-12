@@ -12,8 +12,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('google-maps')
 @Controller('google-maps')
-// @UseGuards(JwtAuthGuard)
-// @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class GoogleMapsController {
   constructor(private readonly googleMapsService: GoogleMapsService) {}
 

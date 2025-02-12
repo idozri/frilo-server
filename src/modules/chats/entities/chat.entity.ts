@@ -1,7 +1,8 @@
 /** @format */
 
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document, Schema as MongooseSchema } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Message } from './message.entity';
 
 export type ChatDocument = Chat & Document;
 
@@ -39,6 +40,9 @@ export class Chat {
 
   @Prop()
   markerId?: string;
+
+  @Prop({ type: [Message], default: [] })
+  messages: Message[];
 }
 
 export const ChatSchema = SchemaFactory.createForClass(Chat);

@@ -10,22 +10,29 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { Location, MarkerStatus } from '../entities/marker.entity';
+import { MarkerStatus } from '../entities/marker.entity';
+import { CreateMarkerCategoryDto } from 'src/modules/categories/dto/create-marker-category.dto';
 
-class LocationDto implements Location {
-  @ApiProperty({ example: 32.0853 })
-  @IsNumber()
-  latitude: number;
+// class LocationDto implements Location {
+//   @ApiProperty({ example: 'Point' })
+//   @IsString()
+//   type: string = 'Point';
 
-  @ApiProperty({ example: 34.7818 })
-  @IsNumber()
-  longitude: number;
+//   @ApiProperty({ example: [34.7818, 32.0853] })
+//   @IsArray()
+//   @IsNumber({}, { each: true })
+//   coordinates: number[];
 
-  @ApiProperty({ example: 'Tel Aviv, Israel' })
-  @IsString()
-  @IsOptional()
-  address?: string;
-}
+//   @ApiProperty({ example: 'Tel Aviv, Israel' })
+//   @IsString()
+//   @IsOptional()
+//   address?: string;
+
+//   @ApiProperty({ example: 'Near the main entrance' })
+//   @IsString()
+//   @IsOptional()
+//   description?: string;
+// }
 
 export class CreateMarkerDto {
   @ApiProperty({ example: 'Help needed with moving' })
@@ -36,16 +43,31 @@ export class CreateMarkerDto {
   @IsString()
   description: string;
 
-  @ApiProperty({ type: LocationDto })
-  @ValidateNested()
-  @Type(() => LocationDto)
-  location: Location;
+  @ApiProperty({ example: [34.7818, 32.0853] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  coordinates: number[];
 
-  @ApiProperty({ example: 'moving-help' })
+  @ApiProperty({ example: 'Tel Aviv, Israel' })
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @ApiProperty({ example: 'Point' })
+  @IsString()
+  @IsOptional()
+  locationType?: string;
+
+  @ApiProperty({ example: 'Near the main entrance' })
+  @IsString()
+  @IsOptional()
+  locationDescription?: string;
+
+  @ApiProperty({ type: String })
   @IsString()
   categoryId: string;
 
-  @ApiProperty({ example: ['image1.jpg', 'image2.jpg'] })
+  @ApiProperty({ example: ['data:image/jpeg;base64,...'] })
   @IsArray()
   @IsString({ each: true })
   @IsOptional()

@@ -11,17 +11,24 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ChatsService } from './chats.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { User } from '../users/entities/user.entity';
 import { GetUser } from '../auth/get-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('chats')
 @Controller('chats')
-@UseGuards(AuthGuard())
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class ChatsController {
   constructor(private readonly chatsService: ChatsService) {}
 
@@ -38,7 +45,13 @@ export class ChatsController {
   @Get()
   @ApiOperation({ summary: 'Get all chats for current user' })
   async getChats(@GetUser() user: User) {
-    return this.chatsService.getChats(user._id);
+    return this.chatsService.getChats(user.id);
+  }
+
+  @Get('with-messages')
+  @ApiOperation({ summary: 'Get all chats for current user with messages' })
+  async getChatsWithMessages(@GetUser() user: User) {
+    return this.chatsService.getChatsWithMessages(user.id);
   }
 
   @Get(':id')
@@ -70,7 +83,7 @@ export class ChatsController {
     @GetUser() user: User,
     @Query('isTyping') isTyping: boolean
   ) {
-    return this.chatsService.updateTypingStatus(chatId, user._id, isTyping);
+    return this.chatsService.updateTypingStatus(chatId, user.id, isTyping);
   }
 
   @Put(':id/mute')

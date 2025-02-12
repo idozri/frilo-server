@@ -24,3 +24,5 @@ yarn-error.*
 
 # firebase service account
 firebase-service-account.json
+*.pem
+**/firebase-service-account.json

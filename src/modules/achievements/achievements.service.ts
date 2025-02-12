@@ -3,7 +3,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Achievement, UserAchievement } from './entities/achievement.entity';
+import {
+  Achievement,
+  Badge,
+  UserAchievement,
+  UserBadge,
+} from './entities/achievement.entity';
 import {
   AchievementType,
   AchievementSummaryItem,
@@ -18,6 +23,8 @@ export class AchievementsService {
     private achievementModel: Model<Achievement>,
     @InjectModel(UserAchievement.name)
     private userAchievementModel: Model<UserAchievement>,
+    @InjectModel(UserBadge.name)
+    private userBadgeModel: Model<UserBadge>,
     @InjectModel(Marker.name)
     private markersModel: Model<Marker>,
     @InjectModel(Message.name)
@@ -35,34 +42,43 @@ export class AchievementsService {
   async getUserAchievementsSummary(
     userId: string
   ): Promise<AchievementSummaryItem[]> {
-    const [completedAchievements, inProgressAchievement] = await Promise.all([
-      // Get latest 3 completed achievements
-      this.userAchievementModel
-        .find({ userId, isCompleted: true })
-        .sort({ completedAt: -1 })
-        .limit(3)
-        .populate('achievementId')
-        .lean()
-        .exec(),
+    const [completedAchievements, inProgressAchievement, badges] =
+      await Promise.all([
+        // Get latest 3 completed achievements
+        this.userAchievementModel
+          .find({ userId, iuserAchievementModelsCompleted: true })
+          .sort({ completedAt: -1 })
+          .limit(3)
+          .populate('achievementId')
+          .lean()
+          .exec(),
 
-      // Get top in-progress achievement
-      this.userAchievementModel
-        .findOne({ userId, isCompleted: false })
-        .sort({ progress: -1 })
-        .populate('achievementId')
-        .lean()
-        .exec(),
-    ]);
+        // Get top in-progress achievement
+        this.userAchievementModel
+          .findOne({ userId, isCompleted: false })
+          .sort({ progress: -1 })
+          .populate('achievementId')
+          .lean()
+          .exec(),
+
+        this.userBadgeModel
+          .find({ userId })
+          .sort({ earnedAt: -1 })
+          .limit(3)
+          .populate('badgeId')
+          .lean()
+          .exec(),
+      ]);
 
     const badgesCount = await this.userAchievementModel.countDocuments({
       userId,
       isCompleted: true,
     });
 
-    const latestBadges = completedAchievements.map((achievement) => ({
-      icon: achievement.achievementId.icon,
-      color: achievement.achievementId.color,
-      name: achievement.achievementId.name,
+    const latestBadges = badges.map((badge) => ({
+      icon: badge.badge?.icon,
+      color: badge.badge?.color,
+      name: badge.badge?.name,
     }));
 
     const summary: AchievementSummaryItem[] = [
@@ -77,12 +93,12 @@ export class AchievementsService {
 
     if (inProgressAchievement) {
       summary.push({
-        title: inProgressAchievement.achievementId.name,
+        title: inProgressAchievement.achievement?.name,
         value: Math.round(inProgressAchievement.progress * 100),
-        icon: inProgressAchievement.achievementId.icon,
-        color: inProgressAchievement.achievementId.color,
+        icon: inProgressAchievement.achievement?.icon,
+        color: inProgressAchievement.achievement?.color,
         progress: inProgressAchievement.progress,
-        description: inProgressAchievement.achievementId.description,
+        description: inProgressAchievement.achievement?.description,
       });
     }
 

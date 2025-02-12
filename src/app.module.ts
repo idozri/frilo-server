@@ -18,7 +18,7 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
 import { DataInitModule } from './services/data-init.module';
 import configuration from './config/configuration';
 import { PassportModule } from '@nestjs/passport';
-import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { AppDataModule } from './modules/app-data/app-data.module';
 
 @Module({
   imports: [
@@ -48,9 +48,9 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     AnalyticsModule,
     AchievementsModule,
     ReactionsModule,
-    PassportModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     DataInitModule,
-    OnboardingModule,
+    AppDataModule,
   ],
 })
 export class AppModule {}

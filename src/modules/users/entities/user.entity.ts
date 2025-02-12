@@ -1,24 +1,30 @@
 /** @format */
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Exclude } from 'class-transformer';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
+import { Exclude, Transform, Expose } from 'class-transformer';
+import {
+  UserAchievement,
+  UserBadge,
+} from 'src/modules/achievements/entities/achievement.entity';
 
 export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ type: String, required: true })
-  _id: string;
+  @Exclude()
+  _id: Types.ObjectId;
+
+  @Expose()
+  get id(): string {
+    return this._id.toString();
+  }
 
   @Prop()
   name?: string;
 
   @Prop({ unique: true, sparse: true })
   email?: string;
-
-  @Prop()
-  displayName?: string;
 
   @Prop()
   firstName?: string;
@@ -54,26 +60,40 @@ export class User {
   hasAcceptedSafetyGuidelines: boolean;
 
   @Prop({ default: false })
-  hasCompletedOnboarding: boolean;
-
-  @Prop({ default: false })
   agreedToTerms: boolean;
 
+  @Prop({ default: 0 })
+  points: number;
+
   @Prop({
-    type: Object,
-    default: {
-      welcomeScreenSeen: false,
-      phoneVerified: false,
-      safetyGuidelinesAccepted: false,
-      tutorialCompleted: false,
-    },
+    default: [],
+    type: [{ type: Types.ObjectId, ref: 'UserAchievement' }],
   })
-  onboardingProgress: {
-    welcomeScreenSeen: boolean;
-    phoneVerified: boolean;
-    safetyGuidelinesAccepted: boolean;
-    tutorialCompleted: boolean;
-  };
+  achievementIds: Types.ObjectId[];
+
+  achievements?: UserAchievement[];
+
+  @Prop({
+    default: [],
+    type: [{ type: Types.ObjectId, ref: 'UserBadge' }],
+  })
+  badgeIds: Types.ObjectId[];
+
+  badges?: UserBadge[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+UserSchema.virtual('achievements', {
+  ref: 'Achievement',
+  localField: 'achievementIds',
+  foreignField: '_id',
+  justOne: false,
+});
+
+UserSchema.virtual('badges', {
+  ref: 'Badge',
+  localField: 'badgeIds',
+  foreignField: '_id',
+  justOne: false,
+});

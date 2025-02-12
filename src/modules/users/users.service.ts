@@ -8,6 +8,7 @@ import { User, UserDocument } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { S3Service } from '../s3/s3.service';
+import { MongoUtils } from '../../utils/mongodb.utils';
 
 @Injectable()
 export class UsersService {
@@ -22,6 +23,7 @@ export class UsersService {
       ...createUserDto,
       password: hashedPassword,
     });
+
     return createdUser.save();
   }
 
@@ -30,10 +32,13 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User> {
-    const user = await this.userModel.findById(id).exec();
+    const user = await this.userModel
+      .findById(MongoUtils.toObjectId(id))
+      .exec();
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
+
     return user;
   }
 
@@ -54,12 +59,15 @@ export class UsersService {
     }
 
     const updatedUser = await this.userModel
-      .findByIdAndUpdate(id, updateUserDto, { new: true })
+      .findByIdAndUpdate(MongoUtils.toObjectId(id), updateUserDto, {
+        new: true,
+      })
       .exec();
 
     if (!updatedUser) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
+
     return updatedUser;
   }
 
@@ -69,15 +77,20 @@ export class UsersService {
       const avatarKey = this.extractKeyFromUrl(user.avatarUrl);
       await this.s3Service.deleteFile(avatarKey);
     }
-    const result = await this.userModel.deleteOne({ _id: id }).exec();
+    const result = await this.userModel
+      .deleteOne({ _id: MongoUtils.toObjectId(id) })
+      .exec();
     if (result.deletedCount === 0) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
   }
 
-  async validateUser(email: string, password: string): Promise<User | null> {
-    const user = await this.findByEmail(email);
-    if (user && (await bcrypt.compare(password, user.password))) {
+  async findByPhoneNumber(phoneNumber: string): Promise<User | null> {
+    const user = await this.userModel
+      .findOne({ phoneNumber })
+      .populate('achievements')
+      .populate('badges');
+    if (user) {
       return user;
     }
     return null;
@@ -88,18 +101,14 @@ export class UsersService {
     return urlParts.slice(3).join('/'); // Remove protocol and bucket name
   }
 
-  async findOrCreate(userData: {
-    id: string;
-    email: string;
-    displayName?: string;
-  }) {
+  async findOrCreate(userData: { id: string; email: string; name?: string }) {
     let user = await this.userModel.findOne({ _id: userData.id });
 
     if (!user) {
       user = await this.userModel.create({
         _id: userData.id,
         // email: userData.email,
-        displayName: userData.displayName,
+        name: userData.name,
       });
     }
 
@@ -111,35 +120,41 @@ export class UsersService {
     userData?: {
       name?: string;
       agreedToTerms?: boolean;
+      email?: string;
     }
   ): Promise<User> {
-    let user = await this.userModel.findOne({ phoneNumber });
+    // Remove any non-digit characters and ensure consistent format
+    const normalizedPhoneNumber = phoneNumber.replace(/\D/g, '');
+
+    let user = await this.userModel.findOne({
+      phoneNumber: normalizedPhoneNumber,
+    });
 
     if (!user) {
-      user = await this.userModel.create({
-        _id: new Date().getTime().toString(), // Generate a unique ID
-        phoneNumber,
+      console.log('userData', {
+        phoneNumber: normalizedPhoneNumber,
+        email: userData?.email,
         name: userData?.name,
         isPhoneVerified: true,
+        isOnline: true,
         agreedToTerms: userData?.agreedToTerms || false,
-        onboardingProgress: {
-          welcomeScreenSeen: false,
-          phoneVerified: true,
-          safetyGuidelinesAccepted: userData?.agreedToTerms || false,
-          tutorialCompleted: false,
-        },
+        hasAcceptedSafetyGuidelines: userData?.agreedToTerms || false,
+      });
+      user = await this.userModel.create({
+        phoneNumber: normalizedPhoneNumber,
+        email: userData?.email,
+        name: userData?.name,
+        isPhoneVerified: true,
+        isOnline: true,
+        agreedToTerms: userData?.agreedToTerms || false,
+        hasAcceptedSafetyGuidelines: userData?.agreedToTerms || false,
       });
     } else {
       // Update user data if provided
       if (userData) {
         user.name = userData.name || user.name;
         user.agreedToTerms = userData.agreedToTerms || user.agreedToTerms;
-        user.onboardingProgress = {
-          ...user.onboardingProgress,
-          safetyGuidelinesAccepted:
-            userData.agreedToTerms ||
-            user.onboardingProgress.safetyGuidelinesAccepted,
-        };
+        user.email = userData.email || user.email;
         await user.save();
       }
     }
