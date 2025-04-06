@@ -75,7 +75,7 @@ export class User {
 
   @Prop({
     default: [],
-    type: [{ type: Types.ObjectId, ref: 'UserBadge' }],
+    type: [{ type: MongooseSchema.Types.ObjectId, ref: 'UserBadge' }],
   })
   badgeIds: Types.ObjectId[];
 

@@ -53,6 +53,10 @@ export class S3Service {
   }
 
   async uploadFiles(uris: string[], folder: string): Promise<string[]> {
+    if (!uris || uris.length === 0) {
+      return [];
+    }
+
     try {
       const base64Files = await Promise.all(
         uris.map((uri) => this.base64ToFile(uri))

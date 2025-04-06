@@ -6,13 +6,21 @@ import { Message } from './message.entity';
 
 export type ChatDocument = Chat & Document;
 
+export enum ChatType {
+  GROUP = 'group',
+  PRIVATE = 'private',
+}
+
 @Schema({ timestamps: true })
 export class Chat {
+  @Prop({ required: true })
+  title: string;
+
   @Prop({ required: true, type: [String] })
   participants: string[];
 
-  @Prop({ default: false })
-  isGroupChat: boolean;
+  @Prop({ default: ChatType.GROUP })
+  type: ChatType;
 
   @Prop()
   groupName?: string;
@@ -41,8 +49,21 @@ export class Chat {
   @Prop()
   markerId?: string;
 
-  @Prop({ type: [Message], default: [] })
-  messages: Message[];
+  @Prop({ type: [String], default: [] })
+  messageIds: string[];
+
+  // Virtual field - will be populated with actual Message documents
+  messages?: Message[];
 }
 
 export const ChatSchema = SchemaFactory.createForClass(Chat);
+
+ChatSchema.virtual('messages', {
+  ref: 'Message',
+  localField: 'messageIds',
+  foreignField: '_id',
+  justOne: false,
+});
+
+ChatSchema.set('toObject', { virtuals: true });
+ChatSchema.set('toJSON', { virtuals: true });

@@ -1,6 +1,10 @@
 import { User } from 'src/modules/users/entities/user.entity';
 import { Marker } from '../entities/marker.entity';
 import { Category } from 'src/modules/categories/entities/category.entity';
+import {
+  Achievement,
+  UserAchievement,
+} from '../../achievements/entities/achievement.entity';
 
 export interface AppLocation {
   latitude: number;
@@ -48,4 +52,9 @@ export interface AppMarker {
   contactPhone?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface MarkerResponse extends AppMarker {
+  completedAchievements?: Achievement[];
+  newAchievements?: UserAchievement[];
 }

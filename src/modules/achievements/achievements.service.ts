@@ -15,6 +15,8 @@ import {
 } from './types/achievement.types';
 import { Message } from '../chats/entities/message.entity';
 import { Marker } from '../markers/entities/marker.entity';
+import { MongoUtils } from 'src/utils/mongodb.utils';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class AchievementsService {
@@ -28,7 +30,9 @@ export class AchievementsService {
     @InjectModel(Marker.name)
     private markersModel: Model<Marker>,
     @InjectModel(Message.name)
-    private messagesModel: Model<Message>
+    private messagesModel: Model<Message>,
+    @InjectModel(User.name)
+    private userModel: Model<User>
   ) {}
 
   async getAchievements(): Promise<Achievement[]> {
@@ -36,7 +40,17 @@ export class AchievementsService {
   }
 
   async getUserAchievements(userId: string): Promise<UserAchievement[]> {
-    return this.userAchievementModel.find({ userId }).exec();
+    console.log('Getting achievements for userId:', userId);
+    const userAchievements = await this.userAchievementModel
+      .find({ userId: MongoUtils.toObjectId(userId) })
+      .populate({
+        path: 'achievement',
+        model: 'Achievement',
+      })
+      .lean()
+      .exec();
+
+    return userAchievements;
   }
 
   async getUserAchievementsSummary(
@@ -46,10 +60,10 @@ export class AchievementsService {
       await Promise.all([
         // Get latest 3 completed achievements
         this.userAchievementModel
-          .find({ userId, iuserAchievementModelsCompleted: true })
+          .find({ userId, isCompleted: true })
           .sort({ completedAt: -1 })
           .limit(3)
-          .populate('achievementId')
+          .populate('achievement')
           .lean()
           .exec(),
 
@@ -57,7 +71,7 @@ export class AchievementsService {
         this.userAchievementModel
           .findOne({ userId, isCompleted: false })
           .sort({ progress: -1 })
-          .populate('achievementId')
+          .populate('achievement')
           .lean()
           .exec(),
 
@@ -110,22 +124,36 @@ export class AchievementsService {
     achievementId: string,
     progress: number
   ): Promise<UserAchievement> {
-    const achievement = await this.achievementModel.findById(
-      new Types.ObjectId(achievementId)
-    );
+    let achievement;
+
+    // Try to find achievement by code first
+    achievement = await this.achievementModel.findOne({ code: achievementId });
+
+    // If not found by code, try by ObjectId
+    if (!achievement) {
+      try {
+        achievement = await this.achievementModel.findById(
+          new Types.ObjectId(achievementId)
+        );
+      } catch (error) {
+        throw new Error('Invalid achievement ID or code');
+      }
+    }
+
     if (!achievement) {
       throw new Error('Achievement not found');
     }
 
     let userAchievement = await this.userAchievementModel.findOne({
       userId,
-      achievementId: new Types.ObjectId(achievementId),
+      achievementId: achievement._id,
     });
 
     if (!userAchievement) {
       userAchievement = new this.userAchievementModel({
-        userId,
-        achievementId: new Types.ObjectId(achievementId),
+        name: achievement.name,
+        userId: MongoUtils.toObjectId(userId),
+        achievementId: achievement._id,
         progress: 0,
         isCompleted: false,
       });
@@ -164,13 +192,13 @@ export class AchievementsService {
     switch (achievement.type) {
       case AchievementType.MARKERS_CREATED:
         const markersCount = await this.markersModel.countDocuments({
-          createdBy: userId,
+          ownerId: userId,
         });
         return markersCount;
 
       case AchievementType.MARKERS_COMPLETED:
         const completedMarkersCount = await this.markersModel.countDocuments({
-          createdBy: userId,
+          ownerId: userId,
           isCompleted: true,
         });
         return completedMarkersCount;
@@ -211,10 +239,73 @@ export class AchievementsService {
       }
       if (achievement.rewards.points) {
         // Award points
+        await this.userModel.updateOne(
+          {
+            _id: MongoUtils.toObjectId(userId),
+          },
+          { $inc: { points: achievement.rewards.points } }
+        );
       }
       if (achievement.rewards.unlockFeature) {
         // Unlock feature
       }
     }
+  }
+
+  async checkAchievementsByType(
+    userId: string,
+    type: AchievementType
+  ): Promise<{
+    completedAchievements: Achievement[];
+    newAchievements: UserAchievement[];
+  }> {
+    // Get all achievements of the specified type
+    const achievements = await this.achievementModel.find({ type });
+    const completedAchievements: Achievement[] = [];
+
+    const newAchievements: UserAchievement[] = [];
+    for (const achievement of achievements) {
+      const progress = await this.calculateProgress(userId, achievement);
+
+      // Check if this achievement was already completed
+      const existingUserAchievement = await this.userAchievementModel.findOne({
+        userId: MongoUtils.toObjectId(userId),
+        achievementId: achievement._id,
+      });
+
+      if (!existingUserAchievement) {
+        // Create new user achievement
+        const userAchievement = new this.userAchievementModel({
+          name: achievement.name,
+          userId: MongoUtils.toObjectId(userId),
+          achievementId: achievement._id,
+          progress,
+          isCompleted: progress >= achievement.total,
+          completedAt: progress >= achievement.total ? new Date() : undefined,
+        });
+        await userAchievement.save();
+
+        if (progress >= achievement.total) {
+          await this.handleAchievementCompletion(userId, achievement);
+          completedAchievements.push(achievement);
+        } else {
+          newAchievements.push(userAchievement);
+        }
+      } else if (!existingUserAchievement.isCompleted) {
+        // Update progress for existing incomplete achievement
+        existingUserAchievement.progress = progress;
+
+        if (progress >= achievement.total) {
+          existingUserAchievement.isCompleted = true;
+          existingUserAchievement.completedAt = new Date();
+          await this.handleAchievementCompletion(userId, achievement);
+          completedAchievements.push(achievement);
+        }
+
+        await existingUserAchievement.save();
+      }
+    }
+
+    return { completedAchievements, newAchievements };
   }
 }

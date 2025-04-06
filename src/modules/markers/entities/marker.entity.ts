@@ -2,7 +2,7 @@
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Exclude, Expose } from 'class-transformer';
-import { Document, Schema as MongooseSchema, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 import { Category } from 'src/modules/categories/entities/category.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 
@@ -10,23 +10,23 @@ export type MarkerDocument = Marker & Document;
 
 export interface Participant {
   userId: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'Pending' | 'accepted' | 'rejected';
   joinedAt: string;
 }
 
 export enum MarkerStatus {
-  ACTIVE = 'active',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  PENDING = 'pending',
-  WAITING_FOR_APPROVAL = 'waiting_for_approval',
-  IN_PROGRESS = 'in_progress',
+  ACTIVE = 'Active',
+  COMPLETED = 'Completed',
+  CANCELLED = 'Cancelled',
+  PENDING = 'Pending',
+  WAITING_FOR_APPROVAL = 'Waiting for approval',
+  IN_PROGRESS = 'In progress',
 }
 
 export enum MarkerPriority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
+  LOW = 'Low',
+  MEDIUM = 'Medium',
+  HIGH = 'High',
 }
 
 @Schema({
@@ -36,7 +36,7 @@ export enum MarkerPriority {
 })
 export class Marker {
   @Exclude()
-  _id: Types.ObjectId;
+  _id: MongooseSchema.Types.ObjectId;
 
   @Expose()
   get id(): string {

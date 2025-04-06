@@ -6,34 +6,37 @@ import { Document } from 'mongoose';
 export type NotificationDocument = Notification & Document;
 
 export enum NotificationType {
+  MESSAGE = 'message',
+  NOTIFICATION = 'notification',
   MARKER_APPLICATION = 'marker_application',
   MARKER_STATUS_UPDATE = 'marker_status_update',
-  CHAT_MESSAGE = 'chat_message',
-  SYSTEM = 'system',
+  MARKER_COMPLETED = 'marker_completed',
+}
+
+export interface NotificationAction {
+  type: 'marker' | 'chat';
+  id: string;
 }
 
 @Schema({ timestamps: true })
 export class Notification {
-  @Prop({ required: true })
-  userId: string;
+  @Prop({ required: true, type: [String] })
+  userIds: string[];
 
   @Prop({ required: true })
   title: string;
 
   @Prop({ required: true })
-  body: string;
+  message: string;
 
   @Prop({ type: String, enum: NotificationType, required: true })
   type: NotificationType;
 
+  @Prop({ type: Object, default: {} })
+  readBy: Record<string, boolean>;
+
   @Prop({ type: Object })
-  data?: Record<string, any>;
-
-  @Prop({ default: false })
-  isRead: boolean;
-
-  @Prop()
-  readAt?: Date;
+  action?: NotificationAction;
 
   @Prop({ type: Date })
   createdAt: Date;

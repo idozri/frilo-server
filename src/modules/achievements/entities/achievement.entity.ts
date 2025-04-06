@@ -1,8 +1,9 @@
 /** @format */
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 import { AchievementType } from '../types/achievement.types';
+import { Types } from 'mongoose';
 
 export type AchievementDocument = Achievement & Document;
 
@@ -40,12 +41,11 @@ export class Achievement extends Document {
   @Prop({ default: false })
   isHidden: boolean;
 
+  @Prop({ required: true, unique: true })
+  code: string;
+
   @Prop({ type: Object })
-  rewards?: {
-    badge?: string;
-    points?: number;
-    unlockFeature?: string;
-  };
+  rewards?: AchievementRewards;
 
   @Prop({
     required: true,
@@ -78,12 +78,25 @@ export class Badge {
   achievementId: string;
 }
 
-@Schema({ timestamps: true })
+@Schema({
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 export class UserAchievement {
-  @Prop({ required: true })
+  _id: Types.ObjectId;
+
+  @Prop({ required: true, type: Types.ObjectId })
   userId: string;
 
-  @Prop({ required: true, type: Types.ObjectId, ref: Achievement.name })
+  @Prop({ required: true })
+  name: string;
+
+  @Prop({
+    required: true,
+    type: Types.ObjectId,
+    ref: 'Achievement',
+  })
   achievementId: string;
 
   achievement?: Achievement;
@@ -120,3 +133,14 @@ export const BadgeSchema = SchemaFactory.createForClass(Badge);
 export const UserAchievementSchema =
   SchemaFactory.createForClass(UserAchievement);
 export const UserBadgeSchema = SchemaFactory.createForClass(UserBadge);
+
+UserAchievementSchema.virtual('achievement', {
+  ref: Achievement.name,
+  localField: 'achievementId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+// Ensure virtuals are included when converting to JSON/Object
+UserAchievementSchema.set('toJSON', { virtuals: true });
+UserAchievementSchema.set('toObject', { virtuals: true });

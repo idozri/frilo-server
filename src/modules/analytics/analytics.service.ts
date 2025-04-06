@@ -3,7 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Marker } from '../markers/entities/marker.entity';
+import { Marker, MarkerStatus } from '../markers/entities/marker.entity';
 import { User } from '../users/entities/user.entity';
 import { Chat } from '../chats/entities/chat.entity';
 import { Message } from '../chats/entities/message.entity';
@@ -30,10 +30,10 @@ export class AnalyticsService {
   async getMarkerStats() {
     const totalMarkers = await this.markerModel.countDocuments();
     const activeMarkers = await this.markerModel.countDocuments({
-      status: 'active',
+      status: 'Active',
     });
     const completedMarkers = await this.markerModel.countDocuments({
-      status: 'completed',
+      status: 'Completed',
     });
 
     return { totalMarkers, activeMarkers, completedMarkers };
@@ -86,7 +86,7 @@ export class AnalyticsService {
   async getMarkerCompletionRate() {
     const total = await this.markerModel.countDocuments();
     const completed = await this.markerModel.countDocuments({
-      status: 'completed',
+      status: MarkerStatus.COMPLETED,
     });
     return total ? (completed / total) * 100 : 0;
   }

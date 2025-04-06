@@ -30,6 +30,8 @@ import { AuthAdapter } from './adapter/auth.adapter';
 @Injectable()
 export class AuthService {
   private readonly JWT_SECRET = this.configService.get('JWT_SECRET');
+  private readonly REFRESH_TOKEN_SECRET =
+    this.configService.get('REFRESH_TOKEN_SECRET') || 'refresh-secret';
   private readonly googleClient: OAuth2Client;
   private readonly emailTransporter: nodemailer.Transporter;
   private readonly passwordResetTokens = new Map<
@@ -57,6 +59,98 @@ export class AuthService {
         pass: this.configService.get('EMAIL_PASS'),
       },
     });
+  }
+
+  private generateTokens(userId: string, phoneNumber: string) {
+    const accessToken = this.jwtService.sign(
+      {
+        userId,
+        phoneNumber,
+      },
+      {
+        secret: this.JWT_SECRET,
+        expiresIn: '15m', // Access token expires in 15 minutes
+      }
+    );
+
+    const refreshToken = this.jwtService.sign(
+      {
+        userId,
+        phoneNumber,
+      },
+      {
+        secret: this.REFRESH_TOKEN_SECRET,
+        expiresIn: '7d', // Refresh token expires in 7 days
+      }
+    );
+
+    return { accessToken, refreshToken };
+  }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      // Verify the refresh token
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: this.REFRESH_TOKEN_SECRET,
+      });
+
+      const user = await this.usersService.findOne(payload.userId);
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      // Generate new tokens
+      const tokens = this.generateTokens(user._id.toString(), user.phoneNumber);
+
+      return {
+        isSuccess: true,
+        ...tokens,
+        user: this.authAdapter.mapUserToAppUser(user),
+      };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  // Update the loginVerifiedPhone method to use the new token generation
+  async loginVerifiedPhone(loginDto: LoginVerifiedPhoneDto) {
+    const user = await this.usersService.findByPhoneNumber(
+      loginDto.phoneNumber
+    );
+
+    if (!user) {
+      return {
+        isSuccess: false,
+        message: 'User not found',
+      };
+    }
+
+    if (!user.isPhoneVerified) {
+      return {
+        isSuccess: false,
+        message: 'Phone number must be verified first',
+      };
+    }
+
+    const isVerified = await this.otpService.verifyOtp({
+      phoneNumber: loginDto.phoneNumber,
+      otp: loginDto.otp,
+    });
+
+    if (!isVerified.isSuccess) {
+      return {
+        isSuccess: false,
+        message: 'Invalid OTP',
+      };
+    }
+
+    const tokens = this.generateTokens(user._id.toString(), user.phoneNumber);
+
+    return {
+      isSuccess: true,
+      ...tokens,
+      user: this.authAdapter.mapUserToAppUser(user),
+    };
   }
 
   // Login user
@@ -103,6 +197,8 @@ export class AuthService {
       };
     }
 
+    console.log(user);
+
     if (!user.isPhoneVerified) {
       return {
         isSuccess: false,
@@ -111,52 +207,6 @@ export class AuthService {
     }
 
     return this.otpService.sendOtp({ phoneNumber: loginDto.phoneNumber });
-  }
-
-  async loginVerifiedPhone(loginDto: LoginVerifiedPhoneDto) {
-    const user = await this.usersService.findByPhoneNumber(
-      loginDto.phoneNumber
-    );
-
-    if (!user) {
-      return {
-        isSuccess: false,
-        message: 'User not found',
-      };
-    }
-
-    if (!user.isPhoneVerified) {
-      return {
-        isSuccess: false,
-        message: 'Phone number must be verified first',
-      };
-    }
-
-    const isVerified = await this.otpService.verifyOtp({
-      phoneNumber: loginDto.phoneNumber,
-      otp: loginDto.otp,
-    });
-
-    if (!isVerified.isSuccess) {
-      return {
-        isSuccess: false,
-        message: 'Invalid OTP',
-      };
-    }
-
-    const token = this.jwtService.sign(
-      {
-        userId: user._id,
-        phoneNumber: user.phoneNumber,
-      },
-      { secret: this.JWT_SECRET }
-    );
-
-    return {
-      isSuccess: true,
-      token,
-      user: this.authAdapter.mapUserToAppUser(user),
-    };
   }
 
   // Register user
@@ -202,6 +252,7 @@ export class AuthService {
       }
     );
 
+    console.log('token', token);
     return {
       isSuccess: true,
       token,
@@ -221,7 +272,9 @@ export class AuthService {
       throw new UnauthorizedException('Phone number must be verified first');
     }
 
-    if (token && this.jwtService.verify(token, { secret: this.JWT_SECRET })) {
+    try {
+      this.jwtService.verify(token, { secret: this.JWT_SECRET });
+    } catch (err) {
       return {
         isSuccess: true,
         user: this.authAdapter.mapUserToAppUser(user),

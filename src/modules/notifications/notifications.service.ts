@@ -1,38 +1,125 @@
 /** @format */
 
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as admin from 'firebase-admin';
-import { Notification } from './entities/notification.entity';
+import { Injectable } from '@nestjs/common';
+import { Notification, NotificationType } from './entities/notification.entity';
+import { DeviceToken } from '../users/entities/device-token.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import * as fs from 'fs';
-import * as path from 'path';
 
 @Injectable()
-export class NotificationsService implements OnModuleInit {
-  private app: admin.app.App;
-
+export class NotificationsService {
   constructor(
-    private configService: ConfigService,
     @InjectModel(Notification.name)
-    private notificationModel: Model<Notification>
+    private notificationModel: Model<Notification>,
+    @InjectModel(DeviceToken.name)
+    private deviceTokenModel: Model<DeviceToken>
   ) {}
 
-  async onModuleInit() {
-    const serviceAccountPath = this.configService.get<string>(
-      'FIREBASE_SERVICE_ACCOUNT'
-    );
-
-    // Read the JSON file
-    const serviceAccount = JSON.parse(
-      fs.readFileSync(path.resolve(process.cwd(), serviceAccountPath), 'utf8')
-    );
-
-    // Initialize Firebase Admin
-    this.app = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+  async addNotification(notification: {
+    userIds: string[];
+    title: string;
+    message: string;
+    type: NotificationType;
+    action?: { type: 'marker' | 'chat'; id: string };
+  }): Promise<Notification> {
+    // Initialize readBy map with all recipients marked as unread
+    const readBy: Record<string, boolean> = {};
+    notification.userIds.forEach((userId) => {
+      readBy[userId] = false;
     });
+
+    // Create notification in database
+    const newNotification = new this.notificationModel({
+      ...notification,
+      readBy,
+      createdAt: new Date(),
+    });
+    await newNotification.save();
+
+    // Send push notification to all recipients
+    try {
+      await this.sendMulticastNotification(
+        notification.userIds,
+        notification.title,
+        notification.message,
+        {
+          type: notification.action?.type || 'general',
+          id: notification.action?.id || '',
+          notificationId: newNotification._id.toString(),
+        }
+      );
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+    }
+
+    return newNotification;
+  }
+
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return this.notificationModel
+      .find({ userIds: userId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .exec();
+  }
+
+  async markNotificationAsRead(
+    notificationId: string,
+    userId: string
+  ): Promise<Notification> {
+    return this.notificationModel.findByIdAndUpdate(
+      notificationId,
+      {
+        $set: { [`readBy.${userId}`]: true },
+      },
+      { new: true }
+    );
+  }
+
+  async registerDeviceToken(
+    userId: string,
+    token: string,
+    deviceId: string
+  ): Promise<DeviceToken> {
+    const existingToken = await this.deviceTokenModel.findOne({
+      userId,
+      deviceId,
+    });
+
+    if (existingToken) {
+      existingToken.token = token;
+      existingToken.lastUsed = new Date();
+      return existingToken.save();
+    }
+
+    const deviceToken = new this.deviceTokenModel({
+      userId,
+      token,
+      deviceId,
+      lastUsed: new Date(),
+    });
+
+    return deviceToken.save();
+  }
+
+  async removeDeviceToken(userId: string, deviceId: string): Promise<void> {
+    await this.deviceTokenModel.deleteOne({ userId, deviceId });
+  }
+
+  private async getUserExpoPushToken(userId: string): Promise<string[]> {
+    const devices = await this.deviceTokenModel
+      .find({ userId })
+      .sort({ lastUsed: -1 })
+      .exec();
+    return devices.map((device) => device.token);
+  }
+
+  private async getUsersExpoPushTokens(userIds: string[]): Promise<string[]> {
+    const devices = await this.deviceTokenModel
+      .find({ userId: { $in: userIds } })
+      .sort({ lastUsed: -1 })
+      .exec();
+    return devices.map((device) => device.token);
   }
 
   async sendPushNotification(
@@ -41,20 +128,25 @@ export class NotificationsService implements OnModuleInit {
     body: string,
     data?: Record<string, string>
   ) {
-    const user = await this.getUserFCMToken(userId);
-    if (!user?.fcmToken) return;
-
-    const message: admin.messaging.Message = {
-      notification: {
-        title,
-        body,
-      },
-      data,
-      token: user.fcmToken,
-    };
+    const pushTokens = await this.getUserExpoPushToken(userId);
+    if (!pushTokens.length) return;
 
     try {
-      await admin.messaging().send(message);
+      const messages = pushTokens.map((token) => ({
+        to: token,
+        sound: 'default',
+        title,
+        body,
+        data: data || {},
+      }));
+
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messages),
+      });
     } catch (error) {
       console.error('Error sending notification:', error);
     }
@@ -66,78 +158,33 @@ export class NotificationsService implements OnModuleInit {
     body: string,
     data?: Record<string, string>
   ) {
-    const users = await this.getUsersFCMTokens(userIds);
-    const tokens = users
-      .filter((user) => user.fcmToken)
-      .map((user) => user.fcmToken);
-
+    const tokens = await this.getUsersExpoPushTokens(userIds);
     if (!tokens.length) return;
 
     try {
-      // Send notifications in batches of 500 (Firebase limit)
-      const batchSize = 500;
+      // Send notifications in batches of 100 to avoid hitting rate limits
+      const batchSize = 100;
       for (let i = 0; i < tokens.length; i += batchSize) {
         const batch = tokens.slice(i, i + batchSize);
         const messages = batch.map((token) => ({
-          notification: {
-            title,
-            body,
-          },
-          data,
-          token,
+          to: token,
+          sound: 'default',
+          title,
+          body,
+          data: data || {},
         }));
 
-        await admin.messaging().sendEach(messages);
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(messages),
+        });
       }
     } catch (error) {
       console.error('Error sending multicast notification:', error);
     }
-  }
-
-  async createNotification(
-    userId: string,
-    title: string,
-    body: string,
-    type: string,
-    data?: Record<string, any>
-  ): Promise<Notification> {
-    const notification = new this.notificationModel({
-      userId,
-      title,
-      body,
-      type,
-      data,
-      isRead: false,
-    });
-
-    return notification.save();
-  }
-
-  async markAsRead(
-    userId: string,
-    notificationId: string
-  ): Promise<Notification> {
-    return this.notificationModel.findOneAndUpdate(
-      { _id: notificationId, userId },
-      { isRead: true, readAt: new Date() },
-      { new: true }
-    );
-  }
-
-  async getUserNotifications(userId: string): Promise<Notification[]> {
-    return this.notificationModel
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  private async getUserFCMToken(userId: string) {
-    // Implement this method to get user's FCM token from your database
-    return null;
-  }
-
-  private async getUsersFCMTokens(userIds: string[]) {
-    // Implement this method to get multiple users' FCM tokens from your database
-    return [];
   }
 }

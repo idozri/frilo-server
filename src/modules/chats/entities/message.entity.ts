@@ -22,8 +22,8 @@ export class Message {
   @Prop({ required: true })
   senderId: string;
 
-  @Prop({ required: true })
-  receiverId: string;
+  @Prop()
+  receiverId?: string;
 
   @Prop({ default: '' })
   text: string;

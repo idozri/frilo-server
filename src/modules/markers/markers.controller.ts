@@ -24,6 +24,9 @@ import { CreateMarkerDto } from './dto/create-marker.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Marker, MarkerStatus } from './entities/marker.entity';
 import { User } from '../auth/decorators/user.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ApiResponse as CommonApiResponse } from 'src/common/interfaces/api-response.interface';
+import { MarkerResponse } from './types/app.marker';
 
 @ApiTags('markers')
 @Controller('markers')
@@ -35,26 +38,48 @@ export class MarkersController {
   @Post()
   @ApiOperation({ summary: 'Create a new marker' })
   @ApiResponse({ status: 201, description: 'Marker created successfully.' })
-  async create(@Body() createMarkerDto: CreateMarkerDto, @Request() req) {
-    const userId = req.user?.userId;
-    if (!userId) {
-      throw new UnauthorizedException('User ID is required');
-    }
+  async create(
+    @Body() createMarkerDto: CreateMarkerDto,
+    @CurrentUser('userId') userId: string
+  ): Promise<CommonApiResponse<MarkerResponse>> {
     return this.markersService.create(userId, createMarkerDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all markers' })
   @ApiResponse({ status: 200, description: 'Returns all markers.' })
-  async findAll(@Query() query: FindAllParams) {
-    return this.markersService.findAll(query);
+  async findAll(
+    @Query('latitude') latitude?: number,
+    @Query('longitude') longitude?: number,
+    @Query('radius') radius?: number
+  ) {
+    return this.markersService.findAll(
+      latitude && longitude
+        ? {
+            latitude,
+            longitude,
+            radius,
+          }
+        : undefined
+    );
   }
 
   @Get('user')
   @ApiOperation({ summary: 'Get user markers' })
   @ApiResponse({ status: 200, description: 'Returns user markers.' })
-  async getUserMarkers(@Request() req) {
-    return this.markersService.getUserMarkers(req.user.userId);
+  async getUserMarkers(@CurrentUser('userId') userId: string) {
+    return this.markersService.getUserMarkers(userId);
+  }
+
+  @Get('count')
+  @ApiOperation({ summary: 'Get user markers count' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the count of user markers.',
+  })
+  async getMarkersCount(@CurrentUser('userId') userId: string) {
+    const count = await this.markersService.getMarkersCount(userId);
+    return { count };
   }
 
   @Get(':id')
@@ -68,11 +93,11 @@ export class MarkersController {
   @ApiOperation({ summary: 'Update a marker' })
   @ApiResponse({ status: 200, description: 'Marker updated successfully.' })
   async update(
-    @Request() req,
     @Param('id') id: string,
-    @Body() updateData: Partial<Marker>
+    @Body() updateMarkerDto: any,
+    @CurrentUser('userId') userId: string
   ) {
-    return this.markersService.update(id, req.user.userId, updateData);
+    return this.markersService.update(id, userId, updateMarkerDto);
   }
 
   @Put(':id/status')
@@ -83,23 +108,30 @@ export class MarkersController {
   })
   async changeStatus(
     @Param('id') id: string,
-    @Body('status') status: MarkerStatus
+    @Body('status') status: MarkerStatus,
+    @CurrentUser('userId') userId: string
   ) {
-    return this.markersService.changeStatus(id, status);
+    await this.markersService.changeStatus(id, status, userId);
+    return { success: true };
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a marker' })
   @ApiResponse({ status: 200, description: 'Marker deleted successfully.' })
-  async remove(@Request() req, @Param('id') id: string) {
-    return this.markersService.remove(id, req.user.userId);
+  async remove(@Param('id') id: string, @CurrentUser('userId') userId: string) {
+    await this.markersService.remove(id, userId);
+    return { success: true };
   }
 
   @Post(':id/apply')
   @ApiOperation({ summary: 'Apply to help with a marker' })
   @ApiResponse({ status: 200, description: 'Applied successfully.' })
-  async applyForHelp(@Request() req, @Param('id') id: string) {
-    return this.markersService.applyForHelp(id, req.user.userId);
+  async applyForHelp(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string
+  ) {
+    await this.markersService.applyForHelp(id, userId);
+    return { success: true };
   }
 
   @Delete(':id/apply')
@@ -108,8 +140,12 @@ export class MarkersController {
     status: 200,
     description: 'Application removed successfully.',
   })
-  async removeFromHelp(@Request() req, @Param('id') id: string) {
-    return this.markersService.removeFromHelp(id, req.user.userId);
+  async removeFromHelp(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string
+  ) {
+    await this.markersService.removeFromHelp(id, userId);
+    return { success: true };
   }
 
   @Put(':id/participants/:participantId')
@@ -119,26 +155,15 @@ export class MarkersController {
     description: 'Participant status updated successfully.',
   })
   async updateParticipantStatus(
-    @Request() req,
     @Param('id') id: string,
     @Param('participantId') participantId: string,
     @Body('status') status: 'accepted' | 'rejected'
   ) {
-    return this.markersService.updateParticipantStatus(
+    await this.markersService.updateParticipantStatus(
       id,
       participantId,
-      status,
-      req.user.userId
+      status
     );
-  }
-
-  @Get('count')
-  @ApiOperation({ summary: 'Get user markers count' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns the count of user markers.',
-  })
-  async getMarkersCount(@Request() req) {
-    return this.markersService.getMarkersCount(req.user.userId);
+    return { success: true };
   }
 }

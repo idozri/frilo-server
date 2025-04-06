@@ -17,6 +17,7 @@ import {
   LoginWithPhoneDto,
   LoginVerifiedPhoneDto,
   RegisterWithPhoneDto,
+  RefreshTokenDto,
 } from './dto';
 
 @ApiTags('auth')
@@ -26,6 +27,14 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly otpService: OtpService
   ) {}
+
+  @Post('refresh-token')
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiResponse({ status: 200, description: 'Token refreshed successfully.' })
+  @ApiResponse({ status: 401, description: 'Invalid refresh token.' })
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshToken(refreshTokenDto.refreshToken);
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

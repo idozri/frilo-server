@@ -1,15 +1,11 @@
-export { LoginWithPhoneDto } from './login-with-phone.dto';
-export { LoginVerifiedPhoneDto } from './login-verified-phone.dto';
-export { LoginDto } from './login.dto';
-export { RegisterWithPhoneDto } from './register-with-phone.dto';
-export { RegisterDto } from './register.dto';
-export { RequestOtpDto } from './otp.dto';
-export { VerifyOtpDto } from './otp.dto';
-export { VerifyUserDto } from './verify-user.dto';
-export { EmailLoginDto } from './email-login.dto';
-
-export { GoogleAuthDto } from './google-auth.dto';
-export {
-  ForgotPasswordRequestDto,
-  ResetPasswordDto,
-} from './forgot-password.dto';
+export * from './login.dto';
+export * from './register.dto';
+export * from './otp.dto';
+export * from './verify-user.dto';
+export * from './email-login.dto';
+export * from './google-auth.dto';
+export * from './forgot-password.dto';
+export * from './login-with-phone.dto';
+export * from './login-verified-phone.dto';
+export * from './register-with-phone.dto';
+export * from './refresh-token.dto';

@@ -3,7 +3,6 @@ import { Marker } from '../entities/marker.entity';
 
 export class MarkersAdapter {
   mapMarkerToAppMarker(marker: Marker): AppMarker {
-    console.log('MarkersAdapter.marker', marker);
     const markerResponse: AppMarker = {
       id: marker._id.toString(),
       title: marker.title,
@@ -42,8 +41,6 @@ export class MarkersAdapter {
       updatedAt: marker.updatedAt,
     };
 
-    console.log('marker', marker);
-    console.log('markerResponse', markerResponse);
     return markerResponse;
   }
 

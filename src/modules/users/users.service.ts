@@ -9,22 +9,51 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { S3Service } from '../s3/s3.service';
 import { MongoUtils } from '../../utils/mongodb.utils';
+import { AchievementsService } from '../achievements/achievements.service';
+import { UserAchievement } from '../achievements/entities/achievement.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
-    private readonly s3Service: S3Service
+    private readonly s3Service: S3Service,
+    private readonly achievementsService: AchievementsService
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    if (createUserDto.password) {
+      const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+      createUserDto.password = hashedPassword;
+    }
     const createdUser = new this.userModel({
       ...createUserDto,
-      password: hashedPassword,
     });
 
-    return createdUser.save();
+    const user = await createdUser.save();
+
+    // Create default achievements for the new user
+    const achievements: UserAchievement[] = [];
+    try {
+      achievements.push(
+        await this.achievementsService.updateAchievementProgress(
+          user.id,
+          'first_help_created',
+          0
+        )
+      );
+      achievements.push(
+        await this.achievementsService.updateAchievementProgress(
+          user.id,
+          'first_help_done',
+          0
+        )
+      );
+    } catch (error) {
+      console.error('Error creating default achievements:', error);
+    }
+
+    user.achievementIds = achievements.map((achievement) => achievement._id);
+    return await user.save();
   }
 
   async findAll(): Promise<User[]> {
@@ -88,7 +117,7 @@ export class UsersService {
   async findByPhoneNumber(phoneNumber: string): Promise<User | null> {
     const user = await this.userModel
       .findOne({ phoneNumber })
-      .populate('achievements')
+      // .populate('achievements')
       .populate('badges');
     if (user) {
       return user;
@@ -126,28 +155,13 @@ export class UsersService {
     // Remove any non-digit characters and ensure consistent format
     const normalizedPhoneNumber = phoneNumber.replace(/\D/g, '');
 
-    let user = await this.userModel.findOne({
-      phoneNumber: normalizedPhoneNumber,
-    });
+    let user = await this.findByPhoneNumber(normalizedPhoneNumber);
 
     if (!user) {
-      console.log('userData', {
+      user = await this.create({
         phoneNumber: normalizedPhoneNumber,
-        email: userData?.email,
-        name: userData?.name,
-        isPhoneVerified: true,
-        isOnline: true,
+        name: userData.name,
         agreedToTerms: userData?.agreedToTerms || false,
-        hasAcceptedSafetyGuidelines: userData?.agreedToTerms || false,
-      });
-      user = await this.userModel.create({
-        phoneNumber: normalizedPhoneNumber,
-        email: userData?.email,
-        name: userData?.name,
-        isPhoneVerified: true,
-        isOnline: true,
-        agreedToTerms: userData?.agreedToTerms || false,
-        hasAcceptedSafetyGuidelines: userData?.agreedToTerms || false,
       });
     } else {
       // Update user data if provided
@@ -155,7 +169,7 @@ export class UsersService {
         user.name = userData.name || user.name;
         user.agreedToTerms = userData.agreedToTerms || user.agreedToTerms;
         user.email = userData.email || user.email;
-        await user.save();
+        user = await this.update(user._id.toString(), user);
       }
     }
 

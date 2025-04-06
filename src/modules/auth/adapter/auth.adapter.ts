@@ -23,7 +23,6 @@ export class AuthAdapter {
       badges: user.badges || [],
     };
 
-    console.log('userResponse', userResponse);
     return userResponse;
   }
 }

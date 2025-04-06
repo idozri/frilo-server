@@ -24,6 +24,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { User } from '../users/entities/user.entity';
 import { GetUser } from '../auth/get-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import RequestUser from 'src/common/interfaces/request.user.interface';
 
 @ApiTags('chats')
 @Controller('chats')
@@ -50,8 +51,8 @@ export class ChatsController {
 
   @Get('with-messages')
   @ApiOperation({ summary: 'Get all chats for current user with messages' })
-  async getChatsWithMessages(@GetUser() user: User) {
-    return this.chatsService.getChatsWithMessages(user.id);
+  async getChatsWithMessages(@GetUser() user: RequestUser) {
+    return this.chatsService.getChatsWithMessages(user.userId);
   }
 
   @Get(':id')
@@ -71,9 +72,9 @@ export class ChatsController {
   async sendMessage(
     @Param('id') chatId: string,
     @Body() messageDto: SendMessageDto,
-    @GetUser() user: User
+    @GetUser() user: RequestUser
   ) {
-    return this.chatsService.sendMessage(chatId, messageDto, user);
+    return this.chatsService.sendMessage(chatId, messageDto, user.userId);
   }
 
   @Put(':id/typing')

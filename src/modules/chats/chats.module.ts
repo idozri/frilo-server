@@ -12,6 +12,7 @@ import { ChatUploadController } from './controllers/chat-upload.controller';
 // import { FirebaseModule } from '../firebase/firebase.module';
 import { AuthModule } from '../auth/auth.module';
 import { PassportModule } from '@nestjs/passport';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PassportModule } from '@nestjs/passport';
     // FirebaseModule,
     AuthModule,
     PassportModule,
+    NotificationsModule,
   ],
   controllers: [ChatsController, ChatUploadController],
   providers: [ChatsService],

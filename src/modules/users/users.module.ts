@@ -8,12 +8,14 @@ import { User, UserSchema } from './entities/user.entity';
 import { S3Module } from '../s3/s3.module';
 import { UserUploadController } from './controllers/user-upload.controller';
 import { PassportModule } from '@nestjs/passport';
+import { AchievementsModule } from '../achievements/achievements.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     S3Module,
     PassportModule,
+    AchievementsModule,
   ],
   controllers: [UsersController, UserUploadController],
   providers: [UsersService],

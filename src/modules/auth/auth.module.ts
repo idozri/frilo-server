@@ -21,7 +21,8 @@ import { Otp, OtpSchema } from './entities/otp.entity';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),
-        signOptions: { expiresIn: '7d' },
+        // signOptions: { expiresIn: '7d' },
+        signOptions: { expiresIn: '10s' },
       }),
       inject: [ConfigService],
     }),

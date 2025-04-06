@@ -47,10 +47,7 @@ export class AppDataService {
     private readonly chatsService: ChatsService
   ) {}
 
-  async getInitialData(
-    userId: string,
-    locationParams: LocationParams
-  ): Promise<InitialAppData> {
+  async getInitialData(userId: string): Promise<InitialAppData> {
     try {
       const [
         achievements,
@@ -64,10 +61,10 @@ export class AppDataService {
         this.achievementsService.getAchievements(),
         this.achievementsService.getUserAchievements(userId),
         this.achievementsService.getUserAchievementsSummary(userId),
-        this.markersService.findAll(locationParams),
+        this.markersService.findAll(),
         this.markersService.getUserMarkers(userId),
         this.categoriesService.findAll(),
-        this.notificationsService.getUserNotifications(userId),
+        this.notificationsService.getNotifications(userId),
       ]);
 
       return {

@@ -20,6 +20,10 @@ export class CreateChatDto {
   @IsEnum(ChatType)
   type: ChatType;
 
+  @ApiProperty({ example: 'Chat Title' })
+  @IsString()
+  title: string;
+
   @ApiProperty({ example: 'Group Name' })
   @IsString()
   @IsOptional()

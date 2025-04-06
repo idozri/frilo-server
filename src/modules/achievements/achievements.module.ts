@@ -17,6 +17,7 @@ import {
 } from './entities/achievement.entity';
 import { Marker, MarkerSchema } from '../markers/entities/marker.entity';
 import { Message, MessageSchema } from '../chats/entities/message.entity';
+import { User, UserSchema } from '../users/entities/user.entity';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { Message, MessageSchema } from '../chats/entities/message.entity';
       { name: UserBadge.name, schema: UserBadgeSchema },
       { name: Marker.name, schema: MarkerSchema },
       { name: Message.name, schema: MessageSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [AchievementsController],
