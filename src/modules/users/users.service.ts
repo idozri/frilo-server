@@ -1,6 +1,10 @@
 /** @format */
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -11,6 +15,7 @@ import { S3Service } from '../s3/s3.service';
 import { MongoUtils } from '../../utils/mongodb.utils';
 import { AchievementsService } from '../achievements/achievements.service';
 import { UserAchievement } from '../achievements/entities/achievement.entity';
+import { RegisterUserDto } from '../auth/dto/register-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -71,8 +76,12 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User> {
+  async findByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email }).exec();
+  }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    return this.userModel.findOne({ googleId }).exec();
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
@@ -175,4 +184,82 @@ export class UsersService {
 
     return user;
   }
+
+  // async registerUser(
+  //   registerUserDto: RegisterUserDto,
+  //   avatarFile?: Express.Multer.File
+  // ): Promise<User> {
+  //   console.log('registerUserDto', registerUserDto);
+  //   console.log('avatarFile', avatarFile);
+  //   const { phoneNumber, email, googleId, name, bio, skills } = registerUserDto;
+
+  //   // 1. Check for duplicate users
+  //   if (phoneNumber) {
+  //     const existingPhoneUser = await this.findByPhoneNumber(phoneNumber);
+  //     if (existingPhoneUser) {
+  //       throw new BadRequestException('Phone number already registered.');
+  //     }
+  //   }
+  //   if (email) {
+  //     const existingEmailUser = await this.findByEmail(email);
+  //     if (existingEmailUser) {
+  //       throw new BadRequestException('Email already registered.');
+  //     }
+  //   }
+  //   if (googleId) {
+  //     const existingGoogleUser = await this.findByGoogleId(googleId);
+  //     if (existingGoogleUser) {
+  //       throw new BadRequestException('Google account already registered.');
+  //     }
+  //   }
+
+  //   // Upload avatar if provided
+  //   let avatarUrl: string | null = null;
+  //   if (avatarFile) {
+  //     try {
+  //       const uploadResult = await this.s3Service.uploadFile(
+  //         avatarFile,
+  //         'avatars'
+  //       );
+  //       avatarUrl = uploadResult.url;
+  //     } catch (error) {
+  //       console.error('Error uploading avatar during registration:', error);
+  //       // Decide if you want to throw an error or proceed without an avatar
+  //       // throw new BadRequestException('Avatar upload failed.');
+  //       // For now, we'll proceed without avatar if upload fails
+  //     }
+  //   }
+
+  //   // 2. Prepare user data
+  //   const userData: Partial<User> = {
+  //     name,
+  //     phoneNumber,
+  //     email,
+  //     googleId,
+  //     avatarUrl: avatarUrl,
+  //     bio,
+  //     skills,
+  //     verificationStatus: {
+  //       phoneVerified: !!phoneNumber || !!googleId,
+  //       emailVerified: !!email || !!googleId,
+  //       idVerified: false,
+  //     },
+  //     agreedToTerms: true,
+  //     hasAcceptedSafetyGuidelines: true,
+  //   };
+
+  //   // 3. Create the user
+  //   try {
+  //     const newUser = new this.userModel(userData);
+  //     return await newUser.save();
+  //   } catch (error) {
+  //     if (error.code === 11000) {
+  //       throw new BadRequestException(
+  //         'Duplicate key error during registration.'
+  //       );
+  //     }
+  //     console.error('Error during user creation:', error);
+  //     throw new BadRequestException('Could not register user.');
+  //   }
+  // }
 }

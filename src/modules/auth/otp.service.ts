@@ -99,6 +99,7 @@ export class OtpService {
 
     // In development, always verify
     if (this.configService.get('NODE_ENV') === 'development') {
+      console.log('Development OTP verified');
       await this.otpModel.findByIdAndDelete(otpRecord._id);
       return { isSuccess: true };
     }

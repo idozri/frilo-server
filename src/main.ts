@@ -1,4 +1,4 @@
-/** @format */
+import cookieParser from 'cookie-parser';
 
 // Set development environment if not set
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
@@ -27,7 +27,10 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = process.env.PORT ?? 3000;
+  app.setGlobalPrefix('api');
+  app.use(cookieParser());
+
+  const port = process.env.PORT ?? 5000;
   const host = '0.0.0.0';
 
   await app.listen(port, host);

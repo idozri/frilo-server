@@ -1,27 +1,32 @@
-import { User } from 'src/modules/users/entities/user.entity';
-import { AppUser } from '../types/app.user';
+import { User, UserDocument } from 'src/modules/users/entities/user.entity';
+import { AppUserDto } from '../dto/app-user.dto';
 
 export class AuthAdapter {
-  mapUserToAppUser(user: User): AppUser {
-    const userResponse: AppUser = {
-      id: user._id.toString(),
-      name: user.name,
-      agreedToTerms: user.hasAcceptedSafetyGuidelines,
-      avatarUrl: user.avatarUrl,
-      points: user.points,
-      email: user.email,
-      isPhoneVerified: user.isPhoneVerified,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      friendIds: user.friendIds,
-      isOnline: user.isOnline,
-      isActive: user.isActive,
-      lastSeen: user.lastSeen,
-      phoneNumber: user.phoneNumber,
-      hasAcceptedSafetyGuidelines: user.hasAcceptedSafetyGuidelines,
-      achievements: user.achievements || [],
-      badges: user.badges || [],
-    };
+  mapUserToAppUser(user: UserDocument): AppUserDto {
+    const userObject = user.toObject({ virtuals: true });
+
+    const userResponse: AppUserDto = new AppUserDto({
+      id: userObject._id.toString(),
+      name: userObject.name,
+      bio: userObject.bio,
+      agreedToTerms: userObject.agreedToTerms,
+      avatarUrl: userObject.avatarUrl,
+      points: userObject.points,
+      email: userObject.email,
+      isPhoneVerified: userObject.isPhoneVerified,
+      friendIds: userObject.friendIds || [],
+      isOnline: userObject.isOnline,
+      isActive: userObject.isActive,
+      lastSeen: userObject.lastSeen,
+      phoneNumber: userObject.phoneNumber,
+      hasAcceptedSafetyGuidelines: userObject.hasAcceptedSafetyGuidelines,
+      achievements: userObject.achievements || [],
+      badges: userObject.badges || [],
+      skills: userObject.skills || [],
+      completedRequests: userObject.completedRequests,
+      verificationStatus: userObject.verificationStatus,
+      language: userObject.language,
+    });
 
     return userResponse;
   }
