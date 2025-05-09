@@ -6,7 +6,6 @@ export * from './email-login.dto';
 export * from './google-auth.dto';
 export * from './forgot-password.dto';
 export * from './login-with-phone.dto';
-export * from './login-verified-phone.dto';
 export * from './register-with-phone.dto';
 export * from './refresh-token.dto';
 export * from './register-user.dto';

@@ -1,5 +1,3 @@
-/** @format */
-
 import {
   Controller,
   Post,
@@ -38,7 +36,6 @@ import {
   ForgotPasswordRequestDto,
   ResetPasswordDto,
   LoginWithPhoneDto,
-  LoginVerifiedPhoneDto,
   RefreshTokenDto,
   RegisterUserDto,
   CheckUserExistsDto,
@@ -48,6 +45,7 @@ import RegisterUserResponse from './interfaces/registerUserResponse';
 import { GoogleProfile } from './interfaces/googleProfile.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -63,17 +61,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   @ApiResponse({ status: 200, description: 'Token refreshed successfully.' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token.' })
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto.refreshToken);
-  }
-
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login user' })
-  @ApiResponse({ status: 200, description: 'User logged in successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid login data.' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async refreshToken(@Req() req: Request, @Res() res: Response) {
+    return this.authService.refreshToken(req, res);
   }
 
   @Post('phone/login')
@@ -81,17 +70,20 @@ export class AuthController {
   @ApiOperation({ summary: 'Login user with phone number' })
   @ApiResponse({ status: 200, description: 'User logged in successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid login data.' })
-  async loginWithPhone(@Body() loginDto: LoginWithPhoneDto) {
-    return this.authService.loginWithPhone(loginDto);
+  async loginWithPhone(
+    @Body() loginDto: LoginWithPhoneDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    return this.authService.loginWithPhone(loginDto, res);
   }
 
-  @Post('verified-phone/login')
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login user with verified phone number' })
-  @ApiResponse({ status: 200, description: 'User logged in successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid login data.' })
-  async loginVerifiedPhone(@Body() loginDto: LoginVerifiedPhoneDto) {
-    return this.authService.loginVerifiedPhone(loginDto);
+  @ApiOperation({ summary: 'Logout user' })
+  @ApiResponse({ status: 200, description: 'User logged out successfully.' })
+  async logout(@Res({ passthrough: true }) res: Response) {
+    return this.authService.logout(res);
   }
 
   @Post('register')
@@ -172,17 +164,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'OTP sent successfully.' })
   @ApiResponse({ status: 400, description: 'Failed to send OTP.' })
   async sendOtp(@Body() requestOtpDto: RequestOtpDto) {
-    try {
-      const result = await this.otpService.sendOtp(requestOtpDto);
-      return {
-        success: true,
-        message: 'OTP sent successfully',
-        ...result,
-      };
-    } catch (error) {
-      console.error('Error in sendOtp controller:', error);
-      throw error;
-    }
+    return await this.otpService.sendOtp(requestOtpDto);
   }
 
   @Post('verify-otp')
@@ -199,8 +181,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Verify user' })
   @ApiResponse({ status: 200, description: 'User verified successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid user.' })
-  async verifyUser(@Body() verifyUserDto: VerifyUserDto) {
-    return this.authService.verifyUser(verifyUserDto);
+  async verifyUser(@Req() req: Request) {
+    return this.authService.verifyUser(req);
   }
 
   @Post('email/login')
@@ -208,17 +190,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'User logged in successfully.' })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
-  async loginWithEmail(@Body() loginDto: EmailLoginDto) {
-    return this.authService.loginWithEmail(loginDto);
-  }
-
-  @Post('google/login')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login with Google' })
-  @ApiResponse({ status: 200, description: 'User logged in successfully.' })
-  @ApiResponse({ status: 401, description: 'Google authentication failed.' })
-  async loginWithGoogle(@Body() googleAuthDto: GoogleAuthDto) {
-    return this.authService.loginWithGoogle(googleAuthDto);
+  async loginWithEmail(
+    @Body() loginDto: EmailLoginDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    return this.authService.loginWithEmail(loginDto, res);
   }
 
   @Post('forgot-password')

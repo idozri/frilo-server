@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsEmail,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   MinLength,
@@ -80,4 +81,15 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   language?: string = 'he';
+
+  @ApiProperty({
+    example: { emailVerified: false, phoneVerified: false, idVerified: false },
+  })
+  @IsObject()
+  @IsOptional()
+  verificationStatus?: {
+    emailVerified: boolean;
+    phoneVerified: boolean;
+    idVerified: boolean;
+  };
 }

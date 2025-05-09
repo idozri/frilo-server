@@ -3,7 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { AchievementsService } from '../achievements/achievements.service';
-import { MarkersService } from '../markers/markers.service';
+import { HelpPointsService } from '../help-points/help-points.service';
 import { CategoriesService } from '../categories/categories.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatsService } from '../chats/chats.service';
@@ -15,7 +15,8 @@ import {
 import { AchievementSummaryItem } from '../achievements/types/achievement.types';
 import { Category } from '../categories/entities/category.entity';
 import { Notification } from '../notifications/entities/notification.entity';
-import { AppMarker } from '../markers/types/app.marker';
+import { AppHelpPoint } from '../help-points/types/app-help-point';
+
 interface LocationParams {
   latitude: number;
   longitude: number;
@@ -30,8 +31,8 @@ export interface InitialAppData {
   };
 
   markers: {
-    all: AppMarker[];
-    userMarkers: AppMarker[];
+    all: AppHelpPoint[];
+    userMarkers: AppHelpPoint[];
   };
   categories: Category[];
   notifications: Notification[];
@@ -41,7 +42,7 @@ export interface InitialAppData {
 export class AppDataService {
   constructor(
     private readonly achievementsService: AchievementsService,
-    private readonly markersService: MarkersService,
+    private readonly helpPointService: HelpPointsService,
     private readonly categoriesService: CategoriesService,
     private readonly notificationsService: NotificationsService,
     private readonly chatsService: ChatsService
@@ -61,8 +62,8 @@ export class AppDataService {
         this.achievementsService.getAchievements(),
         this.achievementsService.getUserAchievements(userId),
         this.achievementsService.getUserAchievementsSummary(userId),
-        this.markersService.findAll(),
-        this.markersService.getUserMarkers(userId),
+        this.helpPointService.findAll(),
+        this.helpPointService.getUserHelpPoints(userId),
         this.categoriesService.findAll(),
         this.notificationsService.getNotifications(userId),
       ]);

@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -16,11 +17,17 @@ import { MongoUtils } from '../../utils/mongodb.utils';
 import { AchievementsService } from '../achievements/achievements.service';
 import { UserAchievement } from '../achievements/entities/achievement.entity';
 import { RegisterUserDto } from '../auth/dto/register-user.dto';
+import {
+  HelpPoint,
+  HelpPointType,
+} from '../help-points/entities/help-point.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(HelpPoint.name)
+    private readonly helpPointModel: Model<HelpPoint>,
     private readonly s3Service: S3Service,
     private readonly achievementsService: AchievementsService
   ) {}
@@ -134,6 +141,26 @@ export class UsersService {
     return null;
   }
 
+  async getUserActivity(userId: string) {
+    const [requests, offers, saved] = await Promise.all([
+      this.helpPointModel
+        .find({ createdBy: userId, type: HelpPointType.REQUEST })
+        .sort({ createdAt: -1 }),
+      this.helpPointModel
+        .find({ createdBy: userId, type: HelpPointType.OFFER })
+        .sort({ createdAt: -1 }),
+      this.helpPointModel.find({ savedBy: { $in: [userId] } }).sort({
+        createdAt: -1,
+      }),
+    ]);
+
+    return {
+      requests,
+      offers,
+      saved,
+    };
+  }
+
   private extractKeyFromUrl(url: string): string {
     const urlParts = url.split('/');
     return urlParts.slice(3).join('/'); // Remove protocol and bucket name
@@ -151,6 +178,46 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async uploadAvatar(
+    userId: string,
+    avatarFile: Express.Multer.File
+  ): Promise<{ avatarUrl: string }> {
+    if (!avatarFile) {
+      throw new InternalServerErrorException('קובץ לא התקבל');
+    }
+
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('משתמש לא נמצא');
+    }
+
+    try {
+      // Upload to S3
+      const uploadResult = await this.s3Service.uploadFile(
+        avatarFile,
+        'avatars'
+      );
+      const avatarUrl = uploadResult.url;
+
+      // after updating the user avatar we need to delete the old avatar from the s3 bucket
+      if (user.avatarUrl) {
+        const oldAvatarKey = this.extractKeyFromUrl(user.avatarUrl);
+        await this.s3Service.deleteFile(oldAvatarKey);
+      }
+
+      // Update user in DB
+      user.avatarUrl = avatarUrl;
+      await user.save();
+
+      // Return JSON response for frontend
+      return { avatarUrl };
+    } catch (error) {
+      console.error('[uploadAvatar] Failed:', error);
+      throw new InternalServerErrorException('שגיאה בהעלאת תמונה');
+    }
   }
 
   async findOrCreateByPhone(
@@ -184,82 +251,4 @@ export class UsersService {
 
     return user;
   }
-
-  // async registerUser(
-  //   registerUserDto: RegisterUserDto,
-  //   avatarFile?: Express.Multer.File
-  // ): Promise<User> {
-  //   console.log('registerUserDto', registerUserDto);
-  //   console.log('avatarFile', avatarFile);
-  //   const { phoneNumber, email, googleId, name, bio, skills } = registerUserDto;
-
-  //   // 1. Check for duplicate users
-  //   if (phoneNumber) {
-  //     const existingPhoneUser = await this.findByPhoneNumber(phoneNumber);
-  //     if (existingPhoneUser) {
-  //       throw new BadRequestException('Phone number already registered.');
-  //     }
-  //   }
-  //   if (email) {
-  //     const existingEmailUser = await this.findByEmail(email);
-  //     if (existingEmailUser) {
-  //       throw new BadRequestException('Email already registered.');
-  //     }
-  //   }
-  //   if (googleId) {
-  //     const existingGoogleUser = await this.findByGoogleId(googleId);
-  //     if (existingGoogleUser) {
-  //       throw new BadRequestException('Google account already registered.');
-  //     }
-  //   }
-
-  //   // Upload avatar if provided
-  //   let avatarUrl: string | null = null;
-  //   if (avatarFile) {
-  //     try {
-  //       const uploadResult = await this.s3Service.uploadFile(
-  //         avatarFile,
-  //         'avatars'
-  //       );
-  //       avatarUrl = uploadResult.url;
-  //     } catch (error) {
-  //       console.error('Error uploading avatar during registration:', error);
-  //       // Decide if you want to throw an error or proceed without an avatar
-  //       // throw new BadRequestException('Avatar upload failed.');
-  //       // For now, we'll proceed without avatar if upload fails
-  //     }
-  //   }
-
-  //   // 2. Prepare user data
-  //   const userData: Partial<User> = {
-  //     name,
-  //     phoneNumber,
-  //     email,
-  //     googleId,
-  //     avatarUrl: avatarUrl,
-  //     bio,
-  //     skills,
-  //     verificationStatus: {
-  //       phoneVerified: !!phoneNumber || !!googleId,
-  //       emailVerified: !!email || !!googleId,
-  //       idVerified: false,
-  //     },
-  //     agreedToTerms: true,
-  //     hasAcceptedSafetyGuidelines: true,
-  //   };
-
-  //   // 3. Create the user
-  //   try {
-  //     const newUser = new this.userModel(userData);
-  //     return await newUser.save();
-  //   } catch (error) {
-  //     if (error.code === 11000) {
-  //       throw new BadRequestException(
-  //         'Duplicate key error during registration.'
-  //       );
-  //     }
-  //     console.error('Error during user creation:', error);
-  //     throw new BadRequestException('Could not register user.');
-  //   }
-  // }
 }

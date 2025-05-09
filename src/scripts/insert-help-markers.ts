@@ -2,11 +2,11 @@ import { connect, disconnect, model } from 'mongoose';
 import { config } from 'dotenv';
 import { faker } from '@faker-js/faker';
 import {
-  Marker,
-  MarkerSchema,
-  MarkerStatus,
-  MarkerPriority,
-} from '../modules/markers/entities/marker.entity';
+  HelpPoint,
+  HelpPointSchema,
+  HelpPointStatus,
+  HelpPointPriority,
+} from '../modules/help-points/entities/help-point.entity';
 import {
   Category,
   CategorySchema,
@@ -70,10 +70,10 @@ const generateMarker = (categories: (Category & Document)[]) => {
     locationDescription: faker.lorem.sentence(),
     categoryId: faker.helpers.arrayElement(helpCategories).id,
     ownerId: OWNER_ID,
-    priority: faker.helpers.arrayElement(Object.values(MarkerPriority)),
+    priority: faker.helpers.arrayElement(Object.values(HelpPointPriority)),
     rating: 0,
     reviewCount: 0,
-    status: MarkerStatus.ACTIVE,
+    status: HelpPointStatus.ACTIVE,
     isFavorited: false,
     verified: false,
     contactPhone: faker.phone.number({ style: 'international' }),
@@ -100,7 +100,7 @@ async function insertMarkers() {
 
     console.log(`Found ${categories.length} categories`);
 
-    const MarkerModel = model<Marker>('Marker', MarkerSchema);
+    const HelpPointModel = model<HelpPoint>('HelpPoint', HelpPointSchema);
     const markers = Array.from({ length: TOTAL_MARKERS }, () =>
       generateMarker(categories)
     );
@@ -109,7 +109,7 @@ async function insertMarkers() {
     const batchSize = 100;
     for (let i = 0; i < markers.length; i += batchSize) {
       const batch = markers.slice(i, i + batchSize);
-      await MarkerModel.create(batch);
+      await HelpPointModel.create(batch);
       console.log(
         `Inserted markers ${i + 1} to ${Math.min(i + batchSize, TOTAL_MARKERS)}`
       );

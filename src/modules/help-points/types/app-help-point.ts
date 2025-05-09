@@ -1,6 +1,3 @@
-import { User } from 'src/modules/users/entities/user.entity';
-import { Marker } from '../entities/marker.entity';
-import { Category } from 'src/modules/categories/entities/category.entity';
 import {
   Achievement,
   UserAchievement,
@@ -25,10 +22,10 @@ interface SimpleCategory {
   description: string;
   color: string;
   type: string;
-  markersCount: number;
+  helpPointsCount: number;
 }
 
-export interface AppMarker {
+export interface AppHelpPoint {
   id: string;
   title: string;
   description: string;
@@ -54,7 +51,7 @@ export interface AppMarker {
   updatedAt: Date;
 }
 
-export interface MarkerResponse extends AppMarker {
+export interface HelpPointResponse extends AppHelpPoint {
   completedAchievements?: Achievement[];
   newAchievements?: UserAchievement[];
 }

@@ -20,7 +20,7 @@ export class NotificationsService {
     title: string;
     message: string;
     type: NotificationType;
-    action?: { type: 'marker' | 'chat'; id: string };
+    action?: { type: 'helpPoint' | 'chat'; id: string };
   }): Promise<Notification> {
     // Initialize readBy map with all recipients marked as unread
     const readBy: Record<string, boolean> = {};

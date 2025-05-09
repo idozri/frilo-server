@@ -23,7 +23,7 @@ export class Category {
   type: string;
 
   @Prop({ default: 0 })
-  markersCount: number;
+  helpPointsCount: number;
 
   @Prop({ default: true })
   isActive: boolean;

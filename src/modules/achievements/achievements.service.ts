@@ -14,7 +14,7 @@ import {
   AchievementSummaryItem,
 } from './types/achievement.types';
 import { Message } from '../chats/entities/message.entity';
-import { Marker } from '../markers/entities/marker.entity';
+import { HelpPoint } from '../help-points/entities/help-point.entity';
 import { MongoUtils } from 'src/utils/mongodb.utils';
 import { User } from '../users/entities/user.entity';
 
@@ -27,8 +27,8 @@ export class AchievementsService {
     private userAchievementModel: Model<UserAchievement>,
     @InjectModel(UserBadge.name)
     private userBadgeModel: Model<UserBadge>,
-    @InjectModel(Marker.name)
-    private markersModel: Model<Marker>,
+    @InjectModel(HelpPoint.name)
+    private markersModel: Model<HelpPoint>,
     @InjectModel(Message.name)
     private messagesModel: Model<Message>,
     @InjectModel(User.name)

@@ -3,7 +3,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Marker, MarkerStatus } from '../markers/entities/marker.entity';
+import {
+  HelpPoint,
+  HelpPointStatus,
+} from '../help-points/entities/help-point.entity';
 import { User } from '../users/entities/user.entity';
 import { Chat } from '../chats/entities/chat.entity';
 import { Message } from '../chats/entities/message.entity';
@@ -11,7 +14,7 @@ import { Message } from '../chats/entities/message.entity';
 @Injectable()
 export class AnalyticsService {
   constructor(
-    @InjectModel(Marker.name) private markerModel: Model<Marker>,
+    @InjectModel(HelpPoint.name) private markerModel: Model<HelpPoint>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Chat.name) private chatModel: Model<Chat>,
     @InjectModel(Message.name) private messageModel: Model<Message>
@@ -86,7 +89,7 @@ export class AnalyticsService {
   async getMarkerCompletionRate() {
     const total = await this.markerModel.countDocuments();
     const completed = await this.markerModel.countDocuments({
-      status: MarkerStatus.COMPLETED,
+      status: HelpPointStatus.COMPLETED,
     });
     return total ? (completed / total) * 100 : 0;
   }

@@ -11,13 +11,11 @@ import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
 import { OtpService } from './otp.service';
 import {
-  LoginDto,
   VerifyUserDto,
   EmailLoginDto,
-  GoogleAuthDto,
   ForgotPasswordRequestDto,
   ResetPasswordDto,
-  RegisterWithPhoneDto,
+  LoginWithPhoneDto,
   RegisterUserDto,
   CheckUserExistsDto,
 } from './dto';
@@ -25,13 +23,14 @@ import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
 import { v4 as uuidv4 } from 'uuid';
 import * as nodemailer from 'nodemailer';
-import { LoginVerifiedPhoneDto, LoginWithPhoneDto } from './dto';
 import { AuthAdapter } from './adapter/auth.adapter';
 import { S3Service } from '../s3/s3.service';
 import RegisterUserResponse from './interfaces/registerUserResponse';
 import { GoogleProfile } from './interfaces/googleProfile.interface';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { User, UserDocument } from '../users/entities/user.entity';
+import { normalizePhoneNumber } from 'src/utils/phone.utils';
+import { ApiResponse } from 'src/common/interfaces/api-response.interface';
 
 @Injectable()
 export class AuthService {
@@ -69,170 +68,132 @@ export class AuthService {
     });
   }
 
-  private generateTokens(userId: string, phoneNumber: string) {
-    const accessToken = this.jwtService.sign(
-      {
-        userId,
-        phoneNumber,
-      },
-      {
-        secret: this.JWT_SECRET,
-        expiresIn: '15m', // Access token expires in 15 minutes
-      }
-    );
+  async refreshToken(req: Request, res: Response) {
+    const refreshToken = req.cookies['refresh_token'];
+    if (!refreshToken) {
+      throw new UnauthorizedException(
+        'לא ניתן לאשור התחברות. נסה להתחבר שנית.'
+      );
+    }
 
-    const refreshToken = this.jwtService.sign(
-      {
-        userId,
-        phoneNumber,
-      },
-      {
-        secret: this.REFRESH_TOKEN_SECRET,
-        expiresIn: '7d', // Refresh token expires in 7 days
-      }
-    );
-
-    return { accessToken, refreshToken };
-  }
-
-  async refreshToken(refreshToken: string) {
     try {
       // Verify the refresh token
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.REFRESH_TOKEN_SECRET,
       });
 
-      const user = await this.usersService.findOne(payload.userId);
+      const user = await this.usersService.findOne(payload.sub);
       if (!user) {
-        throw new UnauthorizedException('User not found');
+        throw new UnauthorizedException('משתמש לא נמצא');
       }
 
-      // Generate new tokens
-      const tokens = this.generateTokens(user._id.toString(), user.phoneNumber);
+      // Generate and set new cookies
+      await this._generateAndSetAuthCookie(user, res);
 
       return {
         isSuccess: true,
-        ...tokens,
         user: this.authAdapter.mapUserToAppUser(user as UserDocument),
       };
     } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        error.message || 'לא ניתן לאשור התחברות. נסה להתחבר שנית.'
+      );
     }
-  }
-
-  // Update the loginVerifiedPhone method to use the new token generation
-  async loginVerifiedPhone(loginDto: LoginVerifiedPhoneDto) {
-    const user = await this.usersService.findByPhoneNumber(
-      loginDto.phoneNumber
-    );
-
-    if (!user) {
-      return {
-        isSuccess: false,
-        message: 'User not found',
-      };
-    }
-
-    if (!user.isPhoneVerified) {
-      return {
-        isSuccess: false,
-        message: 'Phone number must be verified first',
-      };
-    }
-
-    const isVerified = await this.otpService.verifyOtp({
-      phoneNumber: loginDto.phoneNumber,
-      otp: loginDto.otp,
-    });
-
-    if (!isVerified.isSuccess) {
-      return {
-        isSuccess: false,
-        message: 'Invalid OTP',
-      };
-    }
-
-    const tokens = this.generateTokens(user._id.toString(), user.phoneNumber);
-
-    return {
-      isSuccess: true,
-      ...tokens,
-      user: this.authAdapter.mapUserToAppUser(user as UserDocument),
-    };
   }
 
   // Login user
-  async login(loginDto: LoginDto) {
-    return true;
-    // try {
-    //   console.log('loginDto', loginDto);
-    //   const user = await this.usersService.findByPhoneNumber(
-    //     loginDto.phoneNumber
-    //   );
-    //   if (!user) {
-    //     throw new UnauthorizedException('Invalid credentials');
-    //   }
-    //   if (!user.isPhoneVerified) {
-    //     throw new UnauthorizedException('Phone number must be verified first');
-    //   }
-    //   // Generate JWT token
-    //   const token = this.jwtService.sign(
-    //     {
-    //       userId: user._id,
-    //       phoneNumber: user.phoneNumber,
-    //     },
-    //     { secret: this.JWT_SECRET }
-    //   );
-    //   return {
-    //     isSuccess: true,
-    //     token,
-    //     user,
-    //   };
-    // } catch (error) {
-    //   throw new UnauthorizedException('Invalid credentials');
-    // }
+  async loginWithPhone(loginDto: LoginWithPhoneDto, res: Response) {
+    try {
+      const user = await this.usersService.findByPhoneNumber(
+        loginDto.phoneNumber
+      );
+
+      if (!user) {
+        return {
+          isSuccess: false,
+          message: 'משתמש לא נמצא',
+        };
+      }
+
+      if (!user.verificationStatus.phoneVerified) {
+        return {
+          isSuccess: false,
+          message: 'מספר הטלפון לא אומת',
+        };
+      }
+
+      const verificationResponse = await this.otpService.verifyOtp({
+        phoneNumber: normalizePhoneNumber(loginDto.phoneNumber),
+        otp: loginDto.otp,
+      });
+
+      if (!verificationResponse.isSuccess) {
+        return verificationResponse;
+      }
+
+      await this._generateAndSetAuthCookie(user, res);
+      await this.otpService.removePhoneNumber(user.phoneNumber);
+
+      console.log('user', user);
+      return {
+        isSuccess: true,
+        user: this.authAdapter.mapUserToAppUser(user as UserDocument),
+      };
+    } catch (error) {
+      throw new BadRequestException('שגיאה בהתחברות');
+    }
   }
 
-  async loginWithPhone(loginDto: LoginWithPhoneDto) {
-    const user = await this.usersService.findByPhoneNumber(
-      loginDto.phoneNumber
-    );
+  async loginWithEmail(loginDto: EmailLoginDto, res: Response) {
+    console.log('loginDto', loginDto);
+    try {
+      const user = await this.usersService.findByEmail(loginDto.email);
 
-    if (!user) {
+      if (!user) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      const isPasswordValid = await bcrypt.compare(
+        loginDto.password,
+        user.password
+      );
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      await this._generateAndSetAuthCookie(user, res);
+
       return {
-        isSuccess: false,
-        message: 'User not found',
+        isSuccess: true,
+        user: this.authAdapter.mapUserToAppUser(user as UserDocument),
       };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid credentials');
     }
-
-    console.log(user);
-
-    if (!user.isPhoneVerified) {
-      return {
-        isSuccess: false,
-        message: 'Phone number must be verified first',
-      };
-    }
-
-    return this.otpService.sendOtp({ phoneNumber: loginDto.phoneNumber });
   }
 
-  // Register user
-  async registerWithPhone(registerDto: RegisterWithPhoneDto) {
-    const user = await this.usersService.findByPhoneNumber(
-      registerDto.phoneNumber
-    );
+  async logout(res: Response) {
+    res.clearCookie('auth_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    });
 
-    if (user) {
-      return {
-        isSuccess: false,
-        message: 'User already exists',
-      };
-    }
+    res.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    });
 
-    return this.otpService.sendOtp({ phoneNumber: registerDto.phoneNumber });
+    return {
+      isSuccess: true,
+      message: 'התנתקות הוצלחה',
+    };
   }
-
   async register(
     registerDto: RegisterUserDto,
     avatarFile?: Express.Multer.File,
@@ -245,26 +206,45 @@ export class AuthService {
 
     const { phoneNumber, email, googleId } = registerDto;
 
-    // 1. Check for duplicate users
-    if (phoneNumber) {
-      const existingPhoneUser =
-        await this.usersService.findByPhoneNumber(phoneNumber);
-      if (existingPhoneUser) {
-        throw new BadRequestException('Phone number already registered.');
+    const verificationStatus = {
+      emailVerified: false,
+      phoneVerified: false,
+      idVerified: false,
+    };
+
+    try {
+      // 1. Check for duplicate users
+      if (phoneNumber) {
+        const existingPhoneUser =
+          await this.usersService.findByPhoneNumber(phoneNumber);
+        if (existingPhoneUser) {
+          throw new BadRequestException('מספר הטלפון כבר רשום');
+        }
+
+        const isPhoneVerified =
+          await this.otpService.isPhoneNumberVerified(phoneNumber);
+        if (!isPhoneVerified) {
+          throw new BadRequestException('מספר הטלפון לא אומת');
+        }
+
+        await this.otpService.removePhoneNumber(phoneNumber);
+        verificationStatus.phoneVerified = true;
       }
-    }
-    if (email) {
-      const existingEmailUser = await this.usersService.findByEmail(email);
-      if (existingEmailUser) {
-        throw new BadRequestException('Email already registered.');
+      if (email) {
+        const existingEmailUser = await this.usersService.findByEmail(email);
+        if (existingEmailUser) {
+          throw new BadRequestException('Email already registered.');
+        }
       }
-    }
-    if (googleId) {
-      const existingGoogleUser =
-        await this.usersService.findByGoogleId(googleId);
-      if (existingGoogleUser) {
-        throw new BadRequestException('Google account already registered.');
+      if (googleId) {
+        const existingGoogleUser =
+          await this.usersService.findByGoogleId(googleId);
+        if (existingGoogleUser) {
+          throw new BadRequestException('Google account already registered.');
+        }
       }
+    } catch (error) {
+      throw new BadRequestException('שגיאה בבדיקת נתונים');
     }
 
     // Upload avatar if provided
@@ -281,7 +261,6 @@ export class AuthService {
       }
     }
 
-    console.log('avatarUrl', avatarUrl);
     // Find or create user
     const user = await this.usersService.create({
       phoneNumber: registerDto.phoneNumber,
@@ -291,133 +270,79 @@ export class AuthService {
       bio: registerDto.bio,
       skills: registerDto.skills,
       agreedToTerms: registerDto.agreedToTerms,
+      verificationStatus,
       ...(avatarUrl && { avatarUrl }),
     });
 
     await this._generateAndSetAuthCookie(user, res);
 
-    console.log('user', user);
     return {
       isSuccess: true,
       user: this.authAdapter.mapUserToAppUser(user as UserDocument),
     };
   }
 
-  async verifyUser(verifyUserDto: VerifyUserDto): Promise<any> {
-    const { token, phoneNumber } = verifyUserDto;
-    const user = await this.usersService.findByPhoneNumber(phoneNumber);
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    if (!user.isPhoneVerified) {
-      throw new UnauthorizedException('Phone number must be verified first');
-    }
-
+  async verifyUser(req: Request): Promise<ApiResponse<{ isValid: boolean }>> {
     try {
-      this.jwtService.verify(token, { secret: this.JWT_SECRET });
-    } catch (err) {
+      const token = req.headers['authorization']?.split(' ')[1];
+      const payload = await this.jwtService.verifyAsync(token);
       return {
         isSuccess: true,
-        user: this.authAdapter.mapUserToAppUser(user as UserDocument),
-        token,
+        data: {
+          isValid: !!payload?.sub,
+        },
+      };
+    } catch {
+      return {
+        isSuccess: false,
+        message: 'הטוקן אינו תקין',
       };
     }
-
-    const newToken = this.jwtService.sign(
-      {
-        userId: user._id,
-        phoneNumber: user.phoneNumber,
-      },
-      {
-        secret: this.JWT_SECRET,
-      }
-    );
-
-    return {
-      isSuccess: true,
-      token: newToken,
-      user: this.authAdapter.mapUserToAppUser(user as UserDocument),
-    };
   }
 
   // New method for email login
-  async loginWithEmail(loginDto: EmailLoginDto) {
-    try {
-      const user = await this.usersService.findByEmail(loginDto.email);
-
-      if (!user) {
-        throw new UnauthorizedException('Invalid credentials');
-      }
-
-      const isPasswordValid = await bcrypt.compare(
-        loginDto.password,
-        user.password
-      );
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid credentials');
-      }
-
-      const token = this.jwtService.sign(
-        {
-          userId: user._id,
-          email: user.email,
-        },
-        { secret: this.JWT_SECRET }
-      );
-
-      return {
-        isSuccess: true,
-        token,
-        user: this.authAdapter.mapUserToAppUser(user as UserDocument),
-      };
-    } catch (error) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-  }
 
   // New method for Google authentication
-  async loginWithGoogle(googleAuthDto: GoogleAuthDto) {
-    try {
-      const ticket = await this.googleClient.verifyIdToken({
-        idToken: googleAuthDto.idToken,
-        audience: this.configService.get('GOOGLE_CLIENT_ID'),
-      });
+  // async loginWithGoogle(googleAuthDto: GoogleAuthDto) {
+  //   try {
+  //     const ticket = await this.googleClient.verifyIdToken({
+  //       idToken: googleAuthDto.idToken,
+  //       audience: this.configService.get('GOOGLE_CLIENT_ID'),
+  //     });
 
-      const payload = ticket.getPayload();
-      if (!payload) {
-        throw new UnauthorizedException('Invalid Google token');
-      }
+  //     const payload = ticket.getPayload();
+  //     if (!payload) {
+  //       throw new UnauthorizedException('Invalid Google token');
+  //     }
 
-      let user = await this.usersService.findByEmail(payload.email);
+  //     let user = await this.usersService.findByEmail(payload.email);
 
-      if (!user) {
-        // Create new user if doesn't exist
-        user = await this.usersService.findOrCreate({
-          id: uuidv4(),
-          email: payload.email,
-          name: payload.name,
-        });
-      }
+  //     if (!user) {
+  //       // Create new user if doesn't exist
+  //       user = await this.usersService.findOrCreate({
+  //         id: uuidv4(),
+  //         email: payload.email,
+  //         name: payload.name,
+  //       });
+  //     }
 
-      const token = this.jwtService.sign(
-        {
-          userId: user._id,
-          email: user.email,
-        },
-        { secret: this.JWT_SECRET }
-      );
+  //     const token = this.jwtService.sign(
+  //       {
+  //         userId: user._id,
+  //         email: user.email,
+  //       },
+  //       { secret: this.JWT_SECRET }
+  //     );
 
-      return {
-        isSuccess: true,
-        token,
-        user: this.authAdapter.mapUserToAppUser(user as UserDocument),
-      };
-    } catch (error) {
-      throw new UnauthorizedException('Google authentication failed');
-    }
-  }
+  //     return {
+  //       isSuccess: true,
+  //       token,
+  //       user: this.authAdapter.mapUserToAppUser(user as UserDocument),
+  //     };
+  //   } catch (error) {
+  //     throw new UnauthorizedException('Google authentication failed');
+  //   }
+  // }
 
   // New method for requesting password reset
   async requestPasswordReset(forgotPasswordDto: ForgotPasswordRequestDto) {
@@ -672,24 +597,59 @@ export class AuthService {
       // Add any other essential, non-sensitive claims
     };
 
-    const jwtToken = this.jwtService.sign(payload, {
-      secret: this.configService.getOrThrow('JWT_SECRET'),
-      expiresIn: '7d', // Match the cookie maxAge
-    });
+    const { accessToken, refreshToken } = this.generateTokens(
+      user._id.toString(),
+      user.phoneNumber
+    );
 
-    const cookieName = 'auth_token'; // Choose a suitable cookie name
-    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+    const maxAge = 15 * 60 * 1000; // 15 minutes in milliseconds
     const isProduction = this.configService.get('NODE_ENV') === 'production';
 
     console.log('Setting cookie for user:', user._id);
 
-    res.cookie(cookieName, jwtToken, {
+    res.cookie('auth_token', accessToken, {
       httpOnly: true,
       secure: isProduction, // Use secure flag in production
       sameSite: 'lax', // Mitigates CSRF
       path: '/', // Cookie accessible from all paths
       maxAge: maxAge,
     });
+
+    const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: refreshTokenMaxAge,
+    });
+  }
+
+  private generateTokens(userId: string, phoneNumber: string) {
+    const accessToken = this.jwtService.sign(
+      {
+        sub: userId, // ✅ standard claim
+        phoneNumber,
+      },
+      {
+        secret: this.JWT_SECRET,
+        expiresIn: '15m', // Usually 15m, not 1s
+      }
+    );
+
+    const refreshToken = this.jwtService.sign(
+      {
+        sub: userId, // ✅ same here
+        phoneNumber,
+      },
+      {
+        secret: this.REFRESH_TOKEN_SECRET,
+        expiresIn: '7d',
+      }
+    );
+
+    return { accessToken, refreshToken };
   }
 
   /**

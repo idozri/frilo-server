@@ -10,6 +10,13 @@ import { RequestOtpDto, VerifyOtpDto } from './dto';
 import { User } from '../users/entities/user.entity';
 import { Otp, OtpDocument } from './entities/otp.entity';
 import { JwtService } from '@nestjs/jwt';
+import { normalizePhoneNumber } from 'src/utils/phone.utils';
+import getRemainingTime from 'src/utils/get.remaining.time.utils';
+import { ApiResponse } from 'src/common/interfaces/api-response.interface';
+import {
+  OTP_ERROR_CODES,
+  OTP_ERROR_MESSAGES,
+} from './constants/auth.error.codes';
 
 @Injectable()
 export class OtpService {
@@ -31,34 +38,42 @@ export class OtpService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  async sendOtp({
-    phoneNumber,
-  }: RequestOtpDto): Promise<{ isSuccess: boolean }> {
+  async sendOtp({ phoneNumber }: RequestOtpDto): Promise<ApiResponse<{}>> {
     console.log('Sending OTP to:', phoneNumber);
 
     try {
+      const normalizedPhoneNumber = normalizePhoneNumber(phoneNumber);
+
+      const existingOtp = await this.otpModel.findOne({
+        phoneNumber: normalizedPhoneNumber,
+      });
+
+      if (existingOtp?.blockedUntil && existingOtp.blockedUntil > new Date()) {
+        return {
+          isSuccess: false,
+          errorCode: OTP_ERROR_CODES.OTP_BLOCKED,
+          message: `${OTP_ERROR_MESSAGES.OTP_BLOCKED} ${getRemainingTime(existingOtp.blockedUntil)} דקות`,
+        };
+      }
+
       const otp = this.generateOtp();
       const twilioPhoneNumber = this.configService.get<string>(
         'TWILIO_PHONE_NUMBER'
       );
 
-      // Create new OTP record
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 5); // 5 minutes expiration
-
       // Delete any existing OTPs for this phone number
-      await this.otpModel.deleteMany({ phoneNumber });
+      await this.otpModel.deleteMany({
+        phoneNumber: normalizedPhoneNumber,
+      });
 
       // Create new OTP
       await this.otpModel.create({
-        phoneNumber,
+        phoneNumber: normalizedPhoneNumber,
         code: otp,
-        expiresAt,
-        attempts: 0,
       });
 
       // In development, return the OTP for testing
-      if (process.env.NODE_ENV === 'development') {
+      if (this.configService.get('NODE_ENV') === 'development') {
         console.log('Development OTP:', otp);
         return { isSuccess: true };
       }
@@ -73,63 +88,84 @@ export class OtpService {
       return { isSuccess: true };
     } catch (error) {
       console.error('Error sending OTP:', error);
-      throw new BadRequestException('Failed to send OTP. Please try again.');
+      throw new BadRequestException(error.message);
     }
   }
 
-  async verifyOtp({ phoneNumber, otp }: VerifyOtpDto): Promise<{
-    isSuccess: boolean;
-    isUserExists?: boolean;
-    token?: string;
-    user?: User;
-  }> {
+  async verifyOtp({
+    phoneNumber,
+    otp,
+  }: VerifyOtpDto): Promise<ApiResponse<{}>> {
     console.log('Verifying OTP:', phoneNumber, otp);
 
     // Find the latest valid OTP for this phone number
     const otpRecord = await this.otpModel
       .findOne({
-        phoneNumber,
-        expiresAt: { $gt: new Date() },
+        phoneNumber: normalizePhoneNumber(phoneNumber),
       })
       .sort({ createdAt: -1 });
 
-    if (!otpRecord) {
-      return { isSuccess: false };
+    if (!otpRecord) throw new BadRequestException('קוד אימות לא נמצא');
+    if (otpRecord.expiresAt < new Date())
+      throw new BadRequestException('קוד אימות פג תוקף');
+    if (otpRecord.attempts >= 5) {
+      return {
+        isSuccess: false,
+        errorCode: OTP_ERROR_CODES.OTP_BLOCKED,
+        message: `${OTP_ERROR_MESSAGES.OTP_BLOCKED} ${getRemainingTime(otpRecord.blockedUntil)} דקות`,
+      };
     }
 
     // In development, always verify
     if (this.configService.get('NODE_ENV') === 'development') {
       console.log('Development OTP verified');
-      await this.otpModel.findByIdAndDelete(otpRecord._id);
       return { isSuccess: true };
     }
 
-    // Increment attempts
-    otpRecord.attempts += 1;
-    await otpRecord.save();
+    if (otpRecord.code !== otp) {
+      // ⛔ Increment attempts on failure
+      otpRecord.attempts += 1;
 
-    // Check if max attempts exceeded (e.g., 3 attempts)
-    if (otpRecord.attempts >= 3) {
-      await this.otpModel.findByIdAndDelete(otpRecord._id);
-      return { isSuccess: false };
+      if (otpRecord.attempts >= 5) {
+        otpRecord.blockedUntil = new Date(Date.now() + 15 * 60 * 1000); // block for 15 minutes
+      }
+
+      await otpRecord.save();
+      return {
+        isSuccess: false,
+        errorCode: OTP_ERROR_CODES.OTP_INVALID,
+        message: OTP_ERROR_MESSAGES.OTP_INVALID,
+      };
     }
 
-    // Verify OTP
-    const isValid = otpRecord.code === otp;
-    if (isValid) {
-      await this.otpModel.findByIdAndDelete(otpRecord._id);
+    otpRecord.isVerifiedOTP = true;
+    try {
+      await otpRecord.save();
+    } catch (error) {
+      console.error('Error verifying OTP:', error);
+      throw new BadRequestException('שגיאה בתהליך אימות קוד אימות');
     }
 
-    return { isSuccess: isValid };
+    return { isSuccess: true };
   }
 
   async isPhoneNumberVerified(phoneNumber: string): Promise<boolean> {
-    const user = await this.usersService.findByPhoneNumber(phoneNumber);
-    return user?.isPhoneVerified || false;
+    const otpRecord = await this.otpModel.findOne({
+      phoneNumber: normalizePhoneNumber(phoneNumber),
+    });
+
+    return otpRecord?.isVerifiedOTP || false;
   }
 
   async removePhoneNumber(phoneNumber: string): Promise<void> {
-    // Delete all OTPs for this phone number
-    await this.otpModel.deleteMany({ phoneNumber });
+    try {
+      // Delete all OTPs for this phone number
+      await this.otpModel.deleteMany({
+        phoneNumber: normalizePhoneNumber(phoneNumber),
+      });
+    } catch (error) {
+      console.error('Error removing OTP:', error);
+      throw new BadRequestException('שגיאה במחיקת קוד אימות');
+    }
   }
 }
