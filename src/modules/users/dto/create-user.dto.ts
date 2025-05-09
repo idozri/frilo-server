@@ -1,12 +1,15 @@
 /** @format */
 
 import {
+  IsArray,
   IsBoolean,
   IsEmail,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -16,15 +19,17 @@ export class CreateUserDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: '0544266611' })
+  @ApiProperty({ example: '0544266611', required: false })
   @IsString()
-  @IsNotEmpty()
-  phoneNumber: string;
+  @IsOptional()
+  @ValidateIf((o) => !o.email)
+  @IsNotEmpty({ message: 'Phone number or email is required' })
+  phoneNumber?: string;
 
-  @ApiProperty({ example: true })
+  @ApiProperty({ example: true, required: false })
   @IsBoolean()
-  @IsNotEmpty()
-  agreedToTerms: boolean;
+  @IsOptional()
+  agreedToTerms?: boolean;
 
   @ApiProperty({ example: 'John' })
   @IsString()
@@ -41,9 +46,50 @@ export class CreateUserDto {
   @IsOptional()
   email?: string;
 
+  @ApiProperty({
+    example: '109876543210123456789',
+    description: 'Google User ID',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  googleId?: string;
+
   @ApiProperty({ example: 'StrongPassword123!' })
   @IsString()
   @IsOptional()
   @MinLength(8)
   password?: string;
+
+  @ApiProperty({ example: 'https://example.com/avatar.jpg' })
+  @IsString()
+  @IsOptional()
+  avatarUrl?: string;
+
+  @ApiProperty({ example: 'https://example.com/avatar.jpg' })
+  @IsString()
+  @IsOptional()
+  bio?: string;
+
+  @ApiProperty({ example: ['skill1', 'skill2'] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  skills?: string[];
+
+  @ApiProperty({ example: 'en' })
+  @IsString()
+  @IsOptional()
+  language?: string = 'he';
+
+  @ApiProperty({
+    example: { emailVerified: false, phoneVerified: false, idVerified: false },
+  })
+  @IsObject()
+  @IsOptional()
+  verificationStatus?: {
+    emailVerified: boolean;
+    phoneVerified: boolean;
+    idVerified: boolean;
+  };
 }

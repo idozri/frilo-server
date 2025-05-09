@@ -6,7 +6,7 @@ import { Document, Schema as MongooseSchema } from 'mongoose';
 import { Category } from 'src/modules/categories/entities/category.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 
-export type MarkerDocument = Marker & Document;
+export type HelpPointDocument = HelpPoint & Document;
 
 export interface Participant {
   userId: string;
@@ -14,7 +14,7 @@ export interface Participant {
   joinedAt: string;
 }
 
-export enum MarkerStatus {
+export enum HelpPointStatus {
   ACTIVE = 'Active',
   COMPLETED = 'Completed',
   CANCELLED = 'Cancelled',
@@ -23,10 +23,15 @@ export enum MarkerStatus {
   IN_PROGRESS = 'In progress',
 }
 
-export enum MarkerPriority {
+export enum HelpPointPriority {
   LOW = 'Low',
   MEDIUM = 'Medium',
   HIGH = 'High',
+}
+
+export enum HelpPointType {
+  REQUEST = 'Request',
+  OFFER = 'Offer',
 }
 
 @Schema({
@@ -34,7 +39,7 @@ export enum MarkerPriority {
   toJSON: { virtuals: true },
   toObject: { virtuals: true },
 })
-export class Marker {
+export class HelpPoint {
   @Exclude()
   _id: MongooseSchema.Types.ObjectId;
 
@@ -42,6 +47,9 @@ export class Marker {
   get id(): string {
     return this._id.toString();
   }
+
+  @Prop({ required: true, enum: Object.values(HelpPointType) })
+  type: HelpPointType;
 
   @Prop({ required: true })
   title: string;
@@ -93,10 +101,10 @@ export class Marker {
 
   @Prop({
     type: String,
-    enum: Object.values(MarkerPriority),
-    default: MarkerPriority.MEDIUM,
+    enum: Object.values(HelpPointPriority),
+    default: HelpPointPriority.MEDIUM,
   })
-  priority: MarkerPriority;
+  priority: HelpPointPriority;
 
   @Prop({ default: 0 })
   rating: number;
@@ -106,10 +114,10 @@ export class Marker {
 
   @Prop({
     type: String,
-    enum: Object.values(MarkerStatus),
-    default: MarkerStatus.ACTIVE,
+    enum: Object.values(HelpPointStatus),
+    default: HelpPointStatus.ACTIVE,
   })
-  status: MarkerStatus;
+  status: HelpPointStatus;
 
   @Prop({ default: false })
   isFavorited: boolean;
@@ -134,22 +142,25 @@ export class Marker {
 
   @Prop({ type: Date })
   updatedAt: Date;
+
+  @Prop({ type: [MongooseSchema.Types.ObjectId], ref: 'User' })
+  savedBy: string[];
 }
 
-export const MarkerSchema = SchemaFactory.createForClass(Marker);
+export const HelpPointSchema = SchemaFactory.createForClass(HelpPoint);
 
 // Create a compound index for geospatial queries
-MarkerSchema.index({ location: '2dsphere' });
+HelpPointSchema.index({ location: '2dsphere' });
 
 // Add virtual population
-MarkerSchema.virtual('owner', {
+HelpPointSchema.virtual('owner', {
   ref: 'User',
   localField: 'ownerId',
   foreignField: '_id',
   justOne: true,
 });
 
-MarkerSchema.virtual('category', {
+HelpPointSchema.virtual('category', {
   ref: 'Category',
   localField: 'categoryId',
   foreignField: '_id',

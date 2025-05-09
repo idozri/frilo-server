@@ -13,11 +13,17 @@ export class Otp {
   @Prop({ required: true })
   code: string;
 
-  @Prop({ required: true })
-  expiresAt: Date;
-
   @Prop({ default: 0 })
   attempts: number;
+
+  @Prop({ default: () => Date.now() + 5 * 60 * 1000 }) // 5 min expiry
+  expiresAt: Date;
+
+  @Prop({ default: null })
+  blockedUntil: Date;
+
+  @Prop({ default: false })
+  isVerifiedOTP: boolean;
 }
 
 export const OtpSchema = SchemaFactory.createForClass(Otp);

@@ -6,7 +6,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatsModule } from './modules/chats/chats.module';
-import { MarkersModule } from './modules/markers/markers.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { S3Module } from './modules/s3/s3.module';
 import { GoogleModule } from './modules/google/google.module';
@@ -19,6 +18,7 @@ import { DataInitModule } from './services/data-init.module';
 import configuration from './config/configuration';
 import { PassportModule } from '@nestjs/passport';
 import { AppDataModule } from './modules/app-data/app-data.module';
+import { HelpPointsModule } from './modules/help-points/help-points.module';
 
 @Module({
   imports: [
@@ -39,7 +39,7 @@ import { AppDataModule } from './modules/app-data/app-data.module';
     UsersModule,
     AuthModule,
     ChatsModule,
-    MarkersModule,
+    HelpPointsModule,
     CategoriesModule,
     S3Module,
     GoogleModule,

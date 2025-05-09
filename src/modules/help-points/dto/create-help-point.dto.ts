@@ -10,31 +10,9 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { MarkerStatus } from '../entities/marker.entity';
-import { CreateMarkerCategoryDto } from 'src/modules/categories/dto/create-marker-category.dto';
+import { HelpPointStatus } from '../entities/help-point.entity';
 
-// class LocationDto implements Location {
-//   @ApiProperty({ example: 'Point' })
-//   @IsString()
-//   type: string = 'Point';
-
-//   @ApiProperty({ example: [34.7818, 32.0853] })
-//   @IsArray()
-//   @IsNumber({}, { each: true })
-//   coordinates: number[];
-
-//   @ApiProperty({ example: 'Tel Aviv, Israel' })
-//   @IsString()
-//   @IsOptional()
-//   address?: string;
-
-//   @ApiProperty({ example: 'Near the main entrance' })
-//   @IsString()
-//   @IsOptional()
-//   description?: string;
-// }
-
-export class CreateMarkerDto {
+export class CreateHelpPointDto {
   @ApiProperty({ example: 'Help needed with moving' })
   @IsString()
   title: string;
@@ -78,10 +56,10 @@ export class CreateMarkerDto {
   @IsOptional()
   contactPhone?: string;
 
-  @ApiProperty({ enum: MarkerStatus, example: MarkerStatus.ACTIVE })
-  @IsEnum(MarkerStatus)
+  @ApiProperty({ enum: HelpPointStatus, example: HelpPointStatus.ACTIVE })
+  @IsEnum(HelpPointStatus)
   @IsOptional()
-  status?: MarkerStatus;
+  status?: HelpPointStatus;
 
   @ApiProperty({ example: 1 })
   @IsNumber()

@@ -46,15 +46,15 @@ export class CategoriesService {
     }
   }
 
-  async incrementMarkersCount(id: string): Promise<void> {
+  async incrementHelpPointsCount(id: string): Promise<void> {
     await this.categoryModel
-      .findByIdAndUpdate(id, { $inc: { markersCount: 1 } })
+      .findByIdAndUpdate(id, { $inc: { helpPointsCount: 1 } })
       .exec();
   }
 
-  async decrementMarkersCount(id: string): Promise<void> {
+  async decrementHelpPointsCount(id: string): Promise<void> {
     await this.categoryModel
-      .findByIdAndUpdate(id, { $inc: { markersCount: -1 } })
+      .findByIdAndUpdate(id, { $inc: { helpPointsCount: -1 } })
       .exec();
   }
 

@@ -2,7 +2,7 @@
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema, Types } from 'mongoose';
-import { Exclude, Transform, Expose } from 'class-transformer';
+import { Exclude, Expose } from 'class-transformer';
 import {
   UserAchievement,
   UserBadge,
@@ -23,23 +23,37 @@ export class User {
   @Prop()
   name?: string;
 
-  @Prop({ unique: true, sparse: true })
+  @Prop({
+    unique: true,
+    sparse: true,
+    required: function (this: User) {
+      return !this.phoneNumber;
+    },
+  })
   email?: string;
 
-  @Prop()
-  firstName?: string;
-
-  @Prop()
-  lastName?: string;
+  // googleId is optional, unique when present, but allows multiple nulls/absent fields due to sparse index.
+  @Prop({ required: false, unique: true, sparse: true })
+  googleId?: string;
 
   @Prop()
   avatarUrl?: string;
 
   @Prop()
+  bio?: string;
+
+  @Prop({ type: [String], default: [] })
+  skills: string[];
+
+  @Prop()
+  @Exclude()
   password?: string;
 
   @Prop({ default: [] })
   friendIds: string[];
+
+  @Prop({ type: Number, default: 0 })
+  completedRequests: number;
 
   @Prop({ default: false })
   isOnline: boolean;
@@ -50,7 +64,13 @@ export class User {
   @Prop({ default: true })
   isActive: boolean;
 
-  @Prop({ unique: true, required: true })
+  @Prop({
+    unique: true,
+    required: function (this: User) {
+      return !this.email && !this.phoneNumber;
+    },
+    sparse: true,
+  })
   phoneNumber: string;
 
   @Prop({ default: false })
@@ -64,6 +84,32 @@ export class User {
 
   @Prop({ default: 0 })
   points: number;
+
+  @Prop({
+    type: {
+      emailVerified: { type: Boolean, default: false },
+      phoneVerified: { type: Boolean, default: false },
+      idVerified: { type: Boolean, default: false },
+    },
+    default: {},
+  })
+  verificationStatus: {
+    emailVerified: boolean;
+    phoneVerified: boolean;
+    idVerified: boolean;
+  };
+
+  @Prop({
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], default: [0, 0] },
+  })
+  location?: {
+    type: 'Point';
+    coordinates: number[];
+  };
+
+  @Prop({ default: 'en' })
+  language: 'en' | 'he';
 
   @Prop({
     default: [],

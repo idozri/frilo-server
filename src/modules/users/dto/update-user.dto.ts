@@ -21,6 +21,15 @@ export class UpdateUserDto {
   @IsOptional()
   lastName?: string;
 
+  @ApiProperty({
+    example: '109876543210123456789',
+    description: 'Google User ID',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  googleId?: string;
+
   @ApiProperty({ required: false })
   @IsEmail()
   @IsOptional()

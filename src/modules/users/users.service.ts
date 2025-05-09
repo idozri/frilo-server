@@ -1,6 +1,11 @@
 /** @format */
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -11,11 +16,18 @@ import { S3Service } from '../s3/s3.service';
 import { MongoUtils } from '../../utils/mongodb.utils';
 import { AchievementsService } from '../achievements/achievements.service';
 import { UserAchievement } from '../achievements/entities/achievement.entity';
+import { RegisterUserDto } from '../auth/dto/register-user.dto';
+import {
+  HelpPoint,
+  HelpPointType,
+} from '../help-points/entities/help-point.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(HelpPoint.name)
+    private readonly helpPointModel: Model<HelpPoint>,
     private readonly s3Service: S3Service,
     private readonly achievementsService: AchievementsService
   ) {}
@@ -71,8 +83,12 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User> {
+  async findByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email }).exec();
+  }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    return this.userModel.findOne({ googleId }).exec();
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
@@ -125,6 +141,26 @@ export class UsersService {
     return null;
   }
 
+  async getUserActivity(userId: string) {
+    const [requests, offers, saved] = await Promise.all([
+      this.helpPointModel
+        .find({ createdBy: userId, type: HelpPointType.REQUEST })
+        .sort({ createdAt: -1 }),
+      this.helpPointModel
+        .find({ createdBy: userId, type: HelpPointType.OFFER })
+        .sort({ createdAt: -1 }),
+      this.helpPointModel.find({ savedBy: { $in: [userId] } }).sort({
+        createdAt: -1,
+      }),
+    ]);
+
+    return {
+      requests,
+      offers,
+      saved,
+    };
+  }
+
   private extractKeyFromUrl(url: string): string {
     const urlParts = url.split('/');
     return urlParts.slice(3).join('/'); // Remove protocol and bucket name
@@ -142,6 +178,46 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async uploadAvatar(
+    userId: string,
+    avatarFile: Express.Multer.File
+  ): Promise<{ avatarUrl: string }> {
+    if (!avatarFile) {
+      throw new InternalServerErrorException('קובץ לא התקבל');
+    }
+
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('משתמש לא נמצא');
+    }
+
+    try {
+      // Upload to S3
+      const uploadResult = await this.s3Service.uploadFile(
+        avatarFile,
+        'avatars'
+      );
+      const avatarUrl = uploadResult.url;
+
+      // after updating the user avatar we need to delete the old avatar from the s3 bucket
+      if (user.avatarUrl) {
+        const oldAvatarKey = this.extractKeyFromUrl(user.avatarUrl);
+        await this.s3Service.deleteFile(oldAvatarKey);
+      }
+
+      // Update user in DB
+      user.avatarUrl = avatarUrl;
+      await user.save();
+
+      // Return JSON response for frontend
+      return { avatarUrl };
+    } catch (error) {
+      console.error('[uploadAvatar] Failed:', error);
+      throw new InternalServerErrorException('שגיאה בהעלאת תמונה');
+    }
   }
 
   async findOrCreateByPhone(
